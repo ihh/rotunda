@@ -1,5 +1,21 @@
-var Rotunda = (function() {
-    function Rotunda(config) {
+define([
+    'dojo/_base/declare',
+    'dojo/_base/lang',
+    'd3/d3',
+    'Rotunda/util',
+    'Rotunda/colors'
+],
+       function(
+           declare,
+           lang,
+           libd3,
+           util,
+           colors
+       ) {
+
+return declare( null, {
+
+    constructor: function(config) {
 
         var rot = this
 
@@ -26,7 +42,7 @@ var Rotunda = (function() {
         this.radsPerBase = 2 * Math.PI * (1 - this.totalSpacerFraction) / totalLen
         this.refSeqStartAngle = this.refSeqLen.reduce (function (list,len) { return list.concat (list[list.length-1] + rot.spacerRads + rot.radsPerBase*len) }, [0])
         this.refSeqStartAngle.pop()
-        this.refSeqStartAngleByName = keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
+        this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
 
         this.colors = colors
         
@@ -43,26 +59,26 @@ var Rotunda = (function() {
         this.tracks.forEach (function (track, trackNum) {
             rot.drawTrack (track, trackNum)
         })
-    }
+    },
 
-    Rotunda.prototype.drawCircle = function (radius, stroke) {
+    drawCircle: function (radius, stroke) {
         this.g.append("circle")
             .attr("r", radius)
             .style("fill", "none")
             .style("stroke", stroke)
             .attr("cx",this.width/2)
             .attr("cy",this.height/2)
-    }
+    },
 
-    Rotunda.prototype.minRadius = function (trackNum) {
+    minRadius: function (trackNum) {
         return this.radius - (trackNum + 1) * this.trackRadius
-    }
+    },
 
-    Rotunda.prototype.maxRadius = function (trackNum) {
+    maxRadius: function (trackNum) {
         return this.radius - trackNum * this.trackRadius - 1
-    }
+    },
     
-    Rotunda.prototype.drawTrack = function (track, trackNum) {
+    drawTrack: function (track, trackNum) {
         var rot = this
         var maxRadius = this.maxRadius (trackNum)
         var minRadius = this.minRadius (trackNum)
@@ -79,7 +95,7 @@ var Rotunda = (function() {
         var featureColor = function (feature) {
             var rgb = rot.colors[feature.type]
             if (rgb.length == 3) {
-                return rgbToHex.apply (rot, rgb)
+                return util.rgbToHex.apply (rot, rgb)
             }
             return "black"
         }
@@ -93,6 +109,6 @@ var Rotunda = (function() {
             .attr("stroke", featureColor)
             .attr("transform", "translate(" + this.width/2 + "," + this.height/2 + ")")
     }
-    
-    return Rotunda
-})()
+})
+
+       })

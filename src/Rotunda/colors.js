@@ -1,3 +1,10 @@
+define([
+           'dojo/_base/lang'
+       ],
+
+       function(
+           lang
+       ) {
 var colors = {
     "white": [255,255,255],
     "vvvvlgrey": [250,250,250],
@@ -175,3 +182,7 @@ var colors = {
     "lum90chrUn": [108,191,38],
     "lum90chrNA": [171,171,171],
 }
+
+           return colors
+           
+       })
