@@ -1,6 +1,7 @@
 define([
     'dojo/_base/declare',
     'dojo/_base/lang',
+    'dojo/query',
     'd3/d3',
     'Rotunda/util',
     'Rotunda/colors'
@@ -8,6 +9,7 @@ define([
        function(
            declare,
            lang,
+           query,
            libd3,
            util,
            colors
@@ -45,6 +47,8 @@ return declare( null, {
         this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
 
         this.colors = colors
+
+        this.createNavBox (query("#"+this.id)[0])
         
         this.container = d3.select("#"+this.id)
             .append("svg")
@@ -61,6 +65,95 @@ return declare( null, {
         })
     },
 
+    // createNavBox lifted from JBrowse Browser.js
+    createNavBox: function( parent ) {
+        var align = 'left';
+        var navbox = dojo.create( 'div', { id: 'navbox', style: { 'text-align': align } }, parent );
+
+        var four_nbsp = String.fromCharCode(160); four_nbsp = four_nbsp + four_nbsp + four_nbsp + four_nbsp;
+        navbox.appendChild(document.createTextNode( four_nbsp ));
+
+        var moveLeft = document.createElement("img");
+        //moveLeft.type = "image";
+        moveLeft.src = this.resolveUrl( "img/Empty.png" );
+        moveLeft.id = "moveLeft";
+        moveLeft.className = "icon nav";
+        navbox.appendChild(moveLeft);
+        dojo.connect( moveLeft, "click", this,
+                      function(event) {
+                          dojo.stopEvent(event);
+                          this.view.slide(0.9);
+                      });
+
+        var moveRight = document.createElement("img");
+        //moveRight.type = "image";
+        moveRight.src = this.resolveUrl( "img/Empty.png" );
+        moveRight.id="moveRight";
+        moveRight.className = "icon nav";
+        navbox.appendChild(moveRight);
+        dojo.connect( moveRight, "click", this,
+                      function(event) {
+                          dojo.stopEvent(event);
+                          this.view.slide(-0.9);
+                      });
+
+        navbox.appendChild(document.createTextNode( four_nbsp ));
+
+        var bigZoomOut = document.createElement("img");
+        //bigZoomOut.type = "image";
+        bigZoomOut.src = this.resolveUrl( "img/Empty.png" );
+        bigZoomOut.id = "bigZoomOut";
+        bigZoomOut.className = "icon nav";
+        navbox.appendChild(bigZoomOut);
+        dojo.connect( bigZoomOut, "click", this,
+                      function(event) {
+                          dojo.stopEvent(event);
+                          this.view.zoomOut(undefined, undefined, 2);
+                      });
+
+
+        var zoomOut = document.createElement("img");
+        //zoomOut.type = "image";
+        zoomOut.src = this.resolveUrl("img/Empty.png");
+        zoomOut.id = "zoomOut";
+        zoomOut.className = "icon nav";
+        navbox.appendChild(zoomOut);
+        dojo.connect( zoomOut, "click", this,
+                      function(event) {
+                          dojo.stopEvent(event);
+                          this.view.zoomOut();
+                      });
+
+        var zoomIn = document.createElement("img");
+        //zoomIn.type = "image";
+        zoomIn.src = this.resolveUrl( "img/Empty.png" );
+        zoomIn.id = "zoomIn";
+        zoomIn.className = "icon nav";
+        navbox.appendChild(zoomIn);
+        dojo.connect( zoomIn, "click", this,
+                      function(event) {
+                          dojo.stopEvent(event);
+                          this.view.zoomIn();
+                      });
+
+        var bigZoomIn = document.createElement("img");
+        //bigZoomIn.type = "image";
+        bigZoomIn.src = this.resolveUrl( "img/Empty.png" );
+        bigZoomIn.id = "bigZoomIn";
+        bigZoomIn.className = "icon nav";
+        navbox.appendChild(bigZoomIn);
+        dojo.connect( bigZoomIn, "click", this,
+                      function(event) {
+                          dojo.stopEvent(event);
+                          this.view.zoomIn(undefined, undefined, 2);
+                      });
+
+        return navbox
+    },
+
+    // resolveUrl is placeholder for JBrowse equivalent
+    resolveUrl: function(url) { return url },
+    
     drawCircle: function (radius, stroke) {
         this.g.append("circle")
             .attr("r", radius)
