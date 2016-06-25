@@ -19,7 +19,7 @@ var Rotunda = (function() {
         this.refSeqLen = config.refSeqLen || [360]
         this.refSeqName = config.refSeqName || config.refSeqLen.map (function(n,i) { return "seq" + (i+1) })
 
-        this.totalSpacerFraction = config.spacer || .05  // total fraction of circle used as spacer
+        this.totalSpacerFraction = config.spacer || .1  // total fraction of circle used as spacer
         this.spacerRads = this.totalSpacerFraction * 2 * Math.PI / this.refSeqLen.length
 
         var totalLen = this.refSeqLen.reduce (function (tot,len) { return tot + len })
@@ -39,8 +39,6 @@ var Rotunda = (function() {
         this.g = this.container
             .append("g")
             .attr("id", this.id+"_g")
-
-        this.drawCircle (this.radius, 'grey')
 
         this.tracks.forEach (function (track, trackNum) {
             rot.drawTrack (track, trackNum)
@@ -75,7 +73,7 @@ var Rotunda = (function() {
             .startAngle (function (feature) {
                 return rot.refSeqStartAngleByName[feature.seq] + feature.start * rot.radsPerBase
             }).endAngle (function (feature) {
-                return rot.refSeqStartAngleByName[feature.seq] + feature.start * rot.radsPerBase
+                return rot.refSeqStartAngleByName[feature.seq] + feature.end * rot.radsPerBase
             })
 
         var featureColor = function (feature) {
@@ -94,8 +92,6 @@ var Rotunda = (function() {
             .attr("fill", featureColor)
             .attr("stroke", featureColor)
             .attr("transform", "translate(" + this.width/2 + "," + this.height/2 + ")")
-
-        this.drawCircle (minRadius, 'grey')
     }
     
     return Rotunda

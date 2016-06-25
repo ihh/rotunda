@@ -28,6 +28,14 @@ var refSeqNameLen = [
 var refSeqName = refSeqNameLen.map (function (nl) { return nl[0] })
 var refSeqLen = refSeqNameLen.map (function (nl) { return nl[1] })
 
+var refSeqFeatures = refSeqNameLen.map (function (nl) {
+    return { seq: nl[0],
+             start: 0,
+             end: nl[1],
+             id: nl[0],
+             type: nl[0] }
+})
+
 var rotunda
 $.get("cytoBand.txt",
       function (cytoBandTxt) {
@@ -45,12 +53,17 @@ $.get("cytoBand.txt",
                            id: fields[3],
                            type: fields[4] }
               })
-          
+
+          var refSeqTrack = { id: "ref_seqs",
+                              label: "Chromosomes",
+                              features: refSeqFeatures }
+
           var cytoTrack = { id: "cyto_bands",
                             label: "Cytogenetic bands",
                             features: cyto }
           
           rotunda = new Rotunda( { refSeqName: refSeqName,
                                    refSeqLen: refSeqLen,
-                                   tracks: [ cytoTrack ] })
+                                   tracks: [ refSeqTrack,
+                                             cytoTrack ] })
       })
