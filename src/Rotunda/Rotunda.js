@@ -4,7 +4,8 @@ define([
     'dojo/query',
     'd3/d3',
     'Rotunda/util',
-    'Rotunda/colors'
+    'Rotunda/colors',
+    'Rotunda/View/Animation'
 ],
        function(
            declare,
@@ -12,7 +13,8 @@ define([
            query,
            libd3,
            util,
-           colors
+           colors,
+           Animation
        ) {
 
 return declare( null, {
@@ -48,21 +50,20 @@ return declare( null, {
 
         this.colors = colors
 
+        this.scale = 1
+        this.trackRadiusScale = 1
+        this.rotate = 0
+        
         this.createNavBox (query("#"+this.id)[0])
         
-        this.container = d3.select("#"+this.id)
+        this.svg = d3.select("#"+this.id)
             .append("svg")
             .attr("id", this.id+"_svg")
             .attr("width", this.width)
             .attr("height", this.height)
 
-        this.g = this.container
-            .append("g")
-            .attr("id", this.id+"_g")
-
-        this.tracks.forEach (function (track, trackNum) {
-            rot.drawTrack (track, trackNum)
-        })
+        this.draw()
+        this.redraw()
     },
 
     // createNavBox lifted from JBrowse Browser.js
@@ -82,7 +83,7 @@ return declare( null, {
         dojo.connect( moveLeft, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.view.slide(0.9);
+                          this.slide(0.9);
                       });
 
         var moveRight = document.createElement("img");
@@ -94,7 +95,7 @@ return declare( null, {
         dojo.connect( moveRight, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.view.slide(-0.9);
+                          this.slide(-0.9);
                       });
 
         navbox.appendChild(document.createTextNode( four_nbsp ));
@@ -108,7 +109,7 @@ return declare( null, {
         dojo.connect( bigZoomOut, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.view.zoomOut(undefined, undefined, 2);
+                          this.zoomOut(undefined, undefined, 2);
                       });
 
 
@@ -121,7 +122,7 @@ return declare( null, {
         dojo.connect( zoomOut, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.view.zoomOut();
+                          this.zoomOut();
                       });
 
         var zoomIn = document.createElement("img");
@@ -133,7 +134,7 @@ return declare( null, {
         dojo.connect( zoomIn, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.view.zoomIn();
+                          this.zoomIn();
                       });
 
         var bigZoomIn = document.createElement("img");
@@ -145,7 +146,7 @@ return declare( null, {
         dojo.connect( bigZoomIn, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.view.zoomIn(undefined, undefined, 2);
+                          this.zoomIn(undefined, undefined, 2);
                       });
 
         return navbox
@@ -153,6 +154,31 @@ return declare( null, {
 
     // resolveUrl is placeholder for JBrowse equivalent
     resolveUrl: function(url) { return url },
+
+    slide: function(distance) {
+        this.rotate += distance / this.scale
+        if (this.rotate > 2*Math.PI)
+            this.rotate -= 2*Math.PI
+        else if (this.rotate < -2*Math.PI)
+            this.rotate += 2*Math.PI
+        this.redraw()
+    },
+
+    zoomIn: function(e, zoomLoc, steps) {
+        if (steps === undefined) steps = 1;
+        while (steps-- > 0)
+            this.scale *= 2
+        this.trackRadiusScale = Math.sqrt (this.scale)
+        this.redraw()
+    },
+
+    zoomOut: function(e, zoomLoc, steps) {
+        if (steps === undefined) steps = 1;
+        while (steps-- > 0)
+            this.scale /= 2
+        this.trackRadiusScale = Math.sqrt (this.scale)
+        this.redraw()
+    },
     
     drawCircle: function (radius, stroke) {
         this.g.append("circle")
@@ -163,12 +189,34 @@ return declare( null, {
             .attr("cy",this.height/2)
     },
 
+    redraw: function() {
+        this.g.remove()
+        this.draw()
+    },
+    
+    draw: function() {
+        var rot = this
+
+        this.g = this.svg
+            .append("g")
+            .attr("id", this.id+"_g")
+            .attr("transform", "translate(" + this.width/2 + "," + this.radius * this.scale + ")")
+
+        this.tracks.forEach (function (track, trackNum) {
+            rot.drawTrack (track, trackNum)
+        })
+    },
+    
     minRadius: function (trackNum) {
-        return this.radius - (trackNum + 1) * this.trackRadius
+        return this.radius * this.scale - (trackNum + 1) * this.trackRadius * this.trackRadiusScale
     },
 
     maxRadius: function (trackNum) {
-        return this.radius - trackNum * this.trackRadius - 1
+        return this.radius * this.scale - trackNum * this.trackRadius * this.trackRadiusScale - 1
+    },
+
+    coordToAngle: function (seqName, pos) {
+        return this.refSeqStartAngleByName[seqName] + pos * this.radsPerBase + this.rotate
     },
     
     drawTrack: function (track, trackNum) {
@@ -180,9 +228,9 @@ return declare( null, {
             .innerRadius(minRadius)
             .outerRadius(maxRadius)
             .startAngle (function (feature) {
-                return rot.refSeqStartAngleByName[feature.seq] + feature.start * rot.radsPerBase
+                return rot.coordToAngle (feature.seq, feature.start)
             }).endAngle (function (feature) {
-                return rot.refSeqStartAngleByName[feature.seq] + feature.end * rot.radsPerBase
+                return rot.coordToAngle (feature.seq, feature.end)
             })
 
         var featureColor = function (feature) {
@@ -200,7 +248,6 @@ return declare( null, {
             .attr("d", featureArc)
             .attr("fill", featureColor)
             .attr("stroke", featureColor)
-            .attr("transform", "translate(" + this.width/2 + "," + this.height/2 + ")")
     }
 })
 
