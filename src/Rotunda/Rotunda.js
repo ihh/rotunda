@@ -49,12 +49,18 @@ return declare( null, {
         this.refSeqStartAngle = this.refSeqLen.reduce (function (list,len) { return list.concat (list[list.length-1] + rot.spacerRads + rot.radsPerBase*len) }, [0])
         this.refSeqStartAngle.pop()
         this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
-
+        
         this.colors = colors
 
         this.scale = 1
         this.trackRadiusScale = 1
         this.rotate = 0
+        
+        this.maxScale = Math.max (1, 1 / (this.radsPerBase * this.radius))
+        this.minScale = 1
+
+        this.maxTrackHeight = 100
+        this.trackHeightScaleExponent = this.maxScale > 1 ? (Math.log(this.maxTrackHeight) / Math.log(this.maxScale)) : 1
         
         this.createNavBox (query("#"+this.id)[0])
         
@@ -64,10 +70,33 @@ return declare( null, {
             .attr("width", this.width)
             .attr("height", this.height)
 
+        var drag = d3.behavior.drag()
+            .on("drag", function(d,i) {
+                if (!rot.dragging) {
+                    var xDragStart = d3.event.x - d3.event.dx
+                    var yDragStart = d3.event.y - d3.event.dy
+                    rot.dragInitRadians = rot.xyAngle (xDragStart, yDragStart)
+                    rot.dragging = true
+                }
+                rot.dragDeltaRadians = rot.xyAngle (d3.event.x, d3.event.y) - rot.dragInitRadians
+                rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
+            })
+            .on("dragend", function(d,i) {
+                rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
+                rot.dragging = false
+            })
+        this.svg.call(drag)
+        
         this.draw()
         this.redraw()
     },
 
+    xyAngle: function(x,y) {
+        var dx = x - this.width/2
+        var dy = y - this.radius * this.scale
+        return Math.atan2(-dx,dy)
+    },
+    
     // createNavBox lifted from JBrowse Browser.js
     createNavBox: function( parent ) {
         var align = 'left';
@@ -157,6 +186,15 @@ return declare( null, {
     // resolveUrl is placeholder for JBrowse equivalent
     resolveUrl: function(url) { return url },
 
+    rotateTo: function(newRads) {
+        if (newRads > 2*Math.PI)
+            newRads -= 2*Math.PI
+        else if (newRads < -2*Math.PI)
+            newRads += 2*Math.PI
+        this.rotate = newRads
+        this.redraw()
+    },
+    
     slide: function(distance) {
         var rotunda = this
         if (this.animation) return;
@@ -164,14 +202,7 @@ return declare( null, {
         var newRads = this.rotate + deltaRads
         new Slider (newRads,
                     rotunda,
-                    function() {
-                        if (newRads > 2*Math.PI)
-                            newRads -= 2*Math.PI
-                        else if (newRads < -2*Math.PI)
-                            newRads += 2*Math.PI
-                        rotunda.rotate = newRads
-                        rotunda.redraw()
-                    },
+                    function() { rotunda.rotateTo(newRads) },
                     700)
     },
 
@@ -181,6 +212,7 @@ return declare( null, {
         var newScale = this.scale
         while (steps-- > 0)
             newScale *= 2
+        newScale = Math.min (this.maxScale, newScale)
         this.zoomTo (newScale)
     },
 
@@ -190,6 +222,7 @@ return declare( null, {
         var newScale = this.scale
         while (steps-- > 0)
             newScale /= 2
+        newScale = Math.max (this.minScale, newScale)
         this.zoomTo (newScale)
     },
 
@@ -199,12 +232,17 @@ return declare( null, {
                     rot,
                     function() {
                         rot.scale = newScale
-                        rot.trackRadiusScale = Math.sqrt (this.scale)
+                        rot.trackRadiusScale = Math.pow (this.scale, rot.trackHeightScaleExponent)
                         rot.redraw()
                     },
                     700)
     },
-    
+
+    gTransformRotate: function (degrees) {
+        this.g.attr("transform",
+                    "translate(" + this.width/2 + "," + this.radius*this.scale + ") rotate(" + degrees + ")")
+    },
+
     drawCircle: function (radius, stroke) {
         this.g.append("circle")
             .attr("r", radius)
