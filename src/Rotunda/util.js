@@ -8,7 +8,15 @@ define([
 
            var Util
            Util = {
-               
+
+               listToCounts: function (list) {
+	           var c = {}
+	           list.forEach (function(x) {
+                       c[x] = (c[x] || 0) + 1
+                   })
+                   return c
+               },
+
                keyValListToObj: function (keyValList) {
                    var obj = {}
                    keyValList.forEach (function (keyVal) {

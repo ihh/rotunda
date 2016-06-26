@@ -33,7 +33,7 @@ return declare( null, {
             return track.radius || config.defaultTrackRadius || 10
         })
 
-        this.innerRadius = config.innerRadius || 100
+        var minInnerRadius = config.innerRadius || 100
         var r = 0
         this.trackOutsideRadius = []
         for (var n = 0; n < this.tracks.length; ++n) {
@@ -41,7 +41,7 @@ return declare( null, {
             r += this.trackRadius[n]
         }
         this.radius = Math.max (config.radius || 300,
-                                r + this.innerRadius)
+                                r + minInnerRadius)
 
         this.width = this.radius * 2
         this.height = this.radius * 2
@@ -99,7 +99,6 @@ return declare( null, {
         this.svg.call(drag)
         
         this.draw()
-        this.redraw()
     },
 
     xyAngle: function(x,y) {
@@ -306,6 +305,10 @@ return declare( null, {
         return this.radius * this.scale - this.trackOutsideRadius[trackNum] * this.trackRadiusScale
     },
 
+    innerRadius: function() {
+        return this.minRadius (this.tracks.length-1) - 1
+    },
+    
     coordToAngle: function (seqName, pos) {
         return this.refSeqStartAngleByName[seqName] + pos * this.radsPerBase + this.rotate
     },
@@ -316,11 +319,14 @@ return declare( null, {
         var minRadius = this.minRadius (trackNum)
 
         var featureColor = track.color || function (feature) {
-            var rgb = rot.colors[feature.type]
-            if (rgb.length == 3) {
-                return util.rgbToHex.apply (rot, rgb)
+            var rgb = rot.colors[feature.color || feature.type || 'black']
+            if( Object.prototype.toString.call(rgb) === '[object Array]' ) {
+                if (rgb.length == 3) {
+                    return util.rgbToHex.apply (rot, rgb)
+                }
+                return 'black'
             }
-            return "black"
+            return rgb
         }
 
         var data = this.g.selectAll("#track_"+track.id)
@@ -328,7 +334,7 @@ return declare( null, {
             .enter()
 
         switch (track.type) {
-        case "arc":
+        case "feature":
 
             var featureArc = d3.svg.arc()
                 .innerRadius(minRadius)
@@ -367,6 +373,29 @@ return declare( null, {
                 .text(featureText)
             break;
 
+        case "link":
+            var innerRadius = rot.innerRadius()
+            var featureChord = d3.svg.chord()
+                .source (function (link) {
+                    var s = { startAngle: rot.coordToAngle (link.seq, link.start),
+                              endAngle: rot.coordToAngle (link.seq, link.end),
+                              radius: innerRadius }
+                    return s
+                })
+                .target (function (link) {
+                    var t = { startAngle: rot.coordToAngle (link.otherSeq, link.otherStart),
+                              endAngle: rot.coordToAngle (link.otherSeq, link.otherEnd),
+                              radius: innerRadius }
+                    return t
+                })
+
+            data.append("path")
+                .attr("d", featureChord)
+                .attr("fill", featureColor)
+                .attr("stroke", featureColor)
+
+            break;
+            
         default:
             break;
         }
