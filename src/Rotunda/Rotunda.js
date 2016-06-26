@@ -29,11 +29,19 @@ return declare( null, {
 
         this.tracks = config.tracks
 
-        this.trackRadius = config.trackRadius || 10
+        this.trackRadius = this.tracks.map (function (track) {
+            return track.radius || config.defaultTrackRadius || 10
+        })
+
         this.innerRadius = config.innerRadius || 100
-        
+        var r = 0
+        this.trackOutsideRadius = []
+        for (var n = 0; n < this.tracks.length; ++n) {
+            this.trackOutsideRadius.push (r)
+            r += this.trackRadius[n]
+        }
         this.radius = Math.max (config.radius || 300,
-                                this.tracks.length * this.trackRadius + this.innerRadius)
+                                r + this.innerRadius)
 
         this.width = this.radius * 2
         this.height = this.radius * 2
@@ -59,8 +67,8 @@ return declare( null, {
         this.maxScale = Math.max (1, 1 / (this.radsPerBase * this.radius))
         this.minScale = 1
 
-        this.maxTrackHeight = 100
-        this.trackHeightScaleExponent = this.maxScale > 1 ? (Math.log(this.maxTrackHeight) / Math.log(this.maxScale)) : 1
+        this.maxTrackRadius = 100
+        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(this.maxTrackRadius) / Math.log(this.maxScale)) : 1
         
         this.createNavBox (query("#"+this.id)[0])
         
@@ -71,6 +79,9 @@ return declare( null, {
             .attr("height", this.height)
 
         var drag = d3.behavior.drag()
+            .on("dragstart", function(d,i) {
+                rot.dragDeltaRadians = 0
+            })
             .on("drag", function(d,i) {
                 if (!rot.dragging) {
                     var xDragStart = d3.event.x - d3.event.dx
@@ -95,6 +106,14 @@ return declare( null, {
         var dx = x - this.width/2
         var dy = y - this.radius * this.scale
         return Math.atan2(-dx,dy)
+    },
+
+    xPos: function(r,theta) {
+        return Math.sin(theta) * r
+    },
+
+    yPos: function(r,theta) {
+        return -Math.cos(theta) * r
     },
     
     // createNavBox lifted from JBrowse Browser.js
@@ -232,7 +251,7 @@ return declare( null, {
                     rot,
                     function() {
                         rot.scale = newScale
-                        rot.trackRadiusScale = Math.pow (this.scale, rot.trackHeightScaleExponent)
+                        rot.trackRadiusScale = Math.pow (this.scale, rot.trackRadiusScaleExponent)
                         rot.redraw()
                     },
                     700)
@@ -241,6 +260,15 @@ return declare( null, {
     gTransformRotate: function (degrees) {
         this.g.attr("transform",
                     "translate(" + this.width/2 + "," + this.radius*this.scale + ") rotate(" + degrees + ")")
+        d3.selectAll(".rotundaLabel")
+            .attr("transform", "rotate(" + (-degrees) + ")")
+    },
+
+    gTransformScale: function (factor) {
+        this.g.attr("transform",
+                    "scale(" + factor + ") translate(" + (this.width/2) / factor + "," + this.radius * this.scale + ")")
+        d3.selectAll(".rotundaLabel")
+            .attr("transform", "scale(" + (1/factor) + ")")
     },
 
     drawCircle: function (radius, stroke) {
@@ -271,11 +299,11 @@ return declare( null, {
     },
     
     minRadius: function (trackNum) {
-        return this.radius * this.scale - (trackNum + 1) * this.trackRadius * this.trackRadiusScale
+        return this.radius * this.scale - (this.trackOutsideRadius[trackNum] + this.trackRadius[trackNum]) * this.trackRadiusScale + 1
     },
 
     maxRadius: function (trackNum) {
-        return this.radius * this.scale - trackNum * this.trackRadius * this.trackRadiusScale - 1
+        return this.radius * this.scale - this.trackOutsideRadius[trackNum] * this.trackRadiusScale
     },
 
     coordToAngle: function (seqName, pos) {
@@ -287,30 +315,61 @@ return declare( null, {
         var maxRadius = this.maxRadius (trackNum)
         var minRadius = this.minRadius (trackNum)
 
-        var featureArc = d3.svg.arc()
-            .innerRadius(minRadius)
-            .outerRadius(maxRadius)
-            .startAngle (function (feature) {
-                return rot.coordToAngle (feature.seq, feature.start)
-            }).endAngle (function (feature) {
-                return rot.coordToAngle (feature.seq, feature.end)
-            })
-
-        var featureColor = function (feature) {
+        var featureColor = track.color || function (feature) {
             var rgb = rot.colors[feature.type]
             if (rgb.length == 3) {
                 return util.rgbToHex.apply (rot, rgb)
             }
             return "black"
         }
-        
-        this.g.selectAll("#track_"+track.id)
+
+        var data = this.g.selectAll("#track_"+track.id)
             .data(track.features)
             .enter()
-            .append("path")
-            .attr("d", featureArc)
-            .attr("fill", featureColor)
-            .attr("stroke", featureColor)
+
+        switch (track.type) {
+        case "arc":
+
+            var featureArc = d3.svg.arc()
+                .innerRadius(minRadius)
+                .outerRadius(maxRadius)
+                .startAngle (function (feature) {
+                    return rot.coordToAngle (feature.seq, feature.start)
+                }).endAngle (function (feature) {
+                    return rot.coordToAngle (feature.seq, feature.end)
+                })
+
+            data.append("path")
+                .attr("d", featureArc)
+                .attr("fill", featureColor)
+                .attr("stroke", featureColor)
+            break;
+
+        case "text":
+            var featureTransform = function (feature) {
+                return "translate("
+                    + rot.xPos ((maxRadius + minRadius) / 2, rot.coordToAngle (feature.seq, feature.pos))
+                    + ","
+                    + rot.yPos ((maxRadius + minRadius) / 2, rot.coordToAngle (feature.seq, feature.pos))
+                    + ")"
+            }
+
+            var featureText = function (feature) {
+                return feature.label
+            }
+
+            data.append("g")
+                .attr("transform", featureTransform)
+                .append("text")
+                .attr("class", "rotundaLabel")
+                .attr("text-anchor", "middle")
+                .attr("alignment-baseline", "central")
+                .text(featureText)
+            break;
+
+        default:
+            break;
+        }
     }
 })
 

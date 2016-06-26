@@ -28,6 +28,7 @@ require(
 
             var cytoTrack = { id: "cyto_bands",
                               label: "Cytogenetic bands",
+                              type: "arc",
                               features: cyto }
 
             var refSeqNameLen = [
@@ -70,11 +71,24 @@ require(
 
             var refSeqTrack = { id: "ref_seqs",
                                 label: "Chromosomes",
+                                type: "arc",
                                 features: refSeqFeatures }
-            
+
+            var refSeqNameFeatures = refSeqNameLen.map (function (nl) {
+                return { seq: nl[0],
+                         pos: Math.floor(nl[1]/2),
+                         label: nl[0].replace("chr","") }
+            })
+            var refSeqNameTrack = { id: "ref_seq_names",
+                                    label: "Chromosome names",
+                                    type: "text",
+                                    radius: 30,
+                                    features: refSeqNameFeatures }
+
             rotunda = new Rotunda( { refSeqName: refSeqName,
                                      refSeqLen: refSeqLen,
-                                     tracks: [ refSeqTrack,
+                                     tracks: [ refSeqNameTrack,
+                                               refSeqTrack,
                                                cytoTrack ] })
         })
 
