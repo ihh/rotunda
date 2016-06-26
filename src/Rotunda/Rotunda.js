@@ -5,7 +5,8 @@ define([
     'd3/d3',
     'Rotunda/util',
     'Rotunda/colors',
-    'Rotunda/View/Animation'
+    'Rotunda/View/Animation/Zoomer',
+    'Rotunda/View/Animation/Slider'
 ],
        function(
            declare,
@@ -14,7 +15,8 @@ define([
            libd3,
            util,
            colors,
-           Animation
+           Zoomer,
+           Slider
        ) {
 
 return declare( null, {
@@ -156,28 +158,51 @@ return declare( null, {
     resolveUrl: function(url) { return url },
 
     slide: function(distance) {
-        this.rotate += distance / this.scale
-        if (this.rotate > 2*Math.PI)
-            this.rotate -= 2*Math.PI
-        else if (this.rotate < -2*Math.PI)
-            this.rotate += 2*Math.PI
-        this.redraw()
+        var rotunda = this
+        if (this.animation) return;
+        var deltaRads = 2 * distance * Math.atan (.5 * this.width / (this.radius * this.scale))
+        var newRads = this.rotate + deltaRads
+        new Slider (newRads,
+                    rotunda,
+                    function() {
+                        if (newRads > 2*Math.PI)
+                            newRads -= 2*Math.PI
+                        else if (newRads < -2*Math.PI)
+                            newRads += 2*Math.PI
+                        rotunda.rotate = newRads
+                        rotunda.redraw()
+                    },
+                    700)
     },
 
     zoomIn: function(e, zoomLoc, steps) {
+        if (this.animation) return;
         if (steps === undefined) steps = 1;
+        var newScale = this.scale
         while (steps-- > 0)
-            this.scale *= 2
-        this.trackRadiusScale = Math.sqrt (this.scale)
-        this.redraw()
+            newScale *= 2
+        this.zoomTo (newScale)
     },
 
     zoomOut: function(e, zoomLoc, steps) {
+        if (this.animation) return;
         if (steps === undefined) steps = 1;
+        var newScale = this.scale
         while (steps-- > 0)
-            this.scale /= 2
-        this.trackRadiusScale = Math.sqrt (this.scale)
-        this.redraw()
+            newScale /= 2
+        this.zoomTo (newScale)
+    },
+
+    zoomTo: function (newScale) {
+        var rot = this
+        new Zoomer (newScale,
+                    rot,
+                    function() {
+                        rot.scale = newScale
+                        rot.trackRadiusScale = Math.sqrt (this.scale)
+                        rot.redraw()
+                    },
+                    700)
     },
     
     drawCircle: function (radius, stroke) {

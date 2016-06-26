@@ -4,43 +4,28 @@ define(['Rotunda/View/Animation'],
 /**
  * @class
  */
-function Zoomer(scale, toScroll, callback, time, zoomLoc) {
-    Animation.call(this, toScroll, callback, time);
-    this.toZoom = toScroll.zoomContainer;
-    var cWidth = this.toZoom.clientWidth;
+function Zoomer(newScale, rotunda, callback, time) {
+    Animation.call(this, rotunda, callback, time);
+    this.rotunda = rotunda;
+    this.oldScale = rotunda.scale;
+    this.newScale = newScale;
+    this.relativeScale = this.newScale / this.oldScale;
+    this.zoomingIn = this.relativeScale > 1;
+    this.deltaScale = Math.abs (this.newScale - this.oldScale)
+    this.minScale = Math.min (this.oldScale, this.newScale)
 
-    this.initialWidth = cWidth;
-
-    // the container width when zoomFraction is 0
-    this.width0 = cWidth * Math.min(1, scale);
-    // the container width when zoomFraction is 1
-    var width1 = cWidth * Math.max(1, scale);
-    this.distance = width1 - this.width0;
-    this.zoomingIn = scale > 1;
-    //this.zoomLoc = zoomLoc;
-    this.center =
-        (toScroll.getX() + (toScroll.elem.clientWidth * zoomLoc))
-        / toScroll.scrollContainer.clientWidth;
-
-    // initialX and initialLeft can differ when we're scrolling
-    // using scrollTop and scrollLeft
-    this.initialX = this.subject.getX();
-    this.initialLeft = parseInt(this.toZoom.style.left);
+    this.xTrans = rotunda.width / 2
+    this.yTrans = rotunda.radius * rotunda.scale
 };
 
 Zoomer.prototype = new Animation();
 
 Zoomer.prototype.step = function(pos) {
     var zoomFraction = this.zoomingIn ? pos : 1 - pos;
-    var newWidth =
-        ((zoomFraction * zoomFraction) * this.distance) + this.width0;
-    var newLeft = (this.center * this.initialWidth) - (this.center * newWidth);
-    this.toZoom.style.width = newWidth + "px";
-    this.toZoom.style.left = (this.initialLeft + newLeft) + "px";
-    var forceRedraw = this.toZoom.offsetTop;
-
-    if( this.subject.updateStaticElements )
-        this.subject.updateStaticElements({ x: this.initialX - newLeft });
+    var curScale = 
+        (((zoomFraction * zoomFraction) * this.deltaScale) + this.minScale) / this.oldScale
+    this.rotunda.g.attr("transform",
+                        "scale(" + curScale + ") translate(" + this.xTrans / curScale + "," + this.yTrans + ")")
 };
 
 return Zoomer;
