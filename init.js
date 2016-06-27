@@ -64,7 +64,7 @@ require(
         var refSeqNameTrack = { id: "ref_seq_names",
                                 label: "Chromosome names",
                                 type: "text",
-                                radius: 30,
+                                radius: function(scale,trackRadiusScale) { return 30 },  // do not scale
                                 features: refSeqNameFeatures }
 
         var cytoTrack, segDupTrack, gcTrack

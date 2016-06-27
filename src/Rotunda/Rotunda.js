@@ -25,27 +25,23 @@ return declare( null, {
 
         var rot = this
 
+	this.config = config
         this.id = config.id || "rotunda"
 
         this.tracks = config.tracks
 
-        this.trackRadius = this.tracks.map (function (track) {
-            return track.radius || config.defaultTrackRadius || 10
-        })
+	// find dimensions
+	this.defaultTrackRadius = config.defaultTrackRadius || 10
+	this.minInnerRadius = config.minInnerRadius || 100
 
-        var minInnerRadius = config.innerRadius || 100
-        var r = 0
-        this.trackOutsideRadius = []
-        for (var n = 0; n < this.tracks.length; ++n) {
-            this.trackOutsideRadius.push (r)
-            r += this.trackRadius[n]
-        }
+	this.calculateTrackSizes(1,1)
         this.radius = Math.max (config.radius || 300,
-                                r + minInnerRadius)
+                                this.totalTrackRadius + this.minInnerRadius)
 
         this.width = this.radius * 2
         this.height = this.radius * 2
 
+	// set up coordinate system
         this.refSeqLen = config.refSeqLen || [360]
         this.refSeqName = config.refSeqName || config.refSeqLen.map (function(n,i) { return "seq" + (i+1) })
 
@@ -57,19 +53,22 @@ return declare( null, {
         this.refSeqStartAngle = this.refSeqLen.reduce (function (list,len) { return list.concat (list[list.length-1] + rot.spacerRads + rot.radsPerBase*len) }, [0])
         this.refSeqStartAngle.pop()
         this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
+
+	// initialize view coords
+        this.scale = 1
+        this.rotate = 0
         
         this.colors = colors
 
-        this.scale = 1
-        this.trackRadiusScale = 1
-        this.rotate = 0
-        
-        this.maxScale = Math.max (1, 1 / (this.radsPerBase * this.radius))
+	// minBasesPerView = width / (pixelsPerBase * scale)
+ 	var minBasesPerView = 1e6
+        this.maxScale = Math.pow (2, Math.floor (Math.log (Math.max (1, this.width / (this.pixelsPerBaseAtEdge() * minBasesPerView))) / Math.log(2)))
         this.minScale = 1
 
-        var maxTrackScale = config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / 2*Math.log(2)) : 1)
+        var maxTrackScale = config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
         this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale) / Math.log(this.maxScale)) : 1
-        
+
+        // build view
         this.createNavBox (query("#"+this.id)[0])
         
         this.svg = d3.select("#"+this.id)
@@ -250,7 +249,7 @@ return declare( null, {
                     rot,
                     function() {
                         rot.scale = newScale
-                        rot.trackRadiusScale = Math.pow (this.scale, rot.trackRadiusScaleExponent)
+			rot.calculateTrackSizes()
                         rot.redraw()
                     },
                     700)
@@ -296,13 +295,44 @@ return declare( null, {
             rot.drawTrack (track, trackNum)
         })
     },
-    
+
+    pixelsPerBaseAtEdge: function (scale) {
+	return this.radius * this.radsPerBase * (scale || this.scale || 1)
+    },
+
+    basesPerViewAtEdge: function (scale) {
+	return this.width / this.pixelsPerBaseAtEdge(scale)
+    },
+
+    trackRadiusScale: function (scale) {
+	    return Math.pow (scale, this.trackRadiusScaleExponent)
+    },
+
+    calculateTrackSizes: function (scale, trackRadiusScale) {
+	var rot = this
+	scale = scale || this.scale
+	trackRadiusScale = trackRadiusScale || this.trackRadiusScale(scale)
+
+        this.trackRadius = this.tracks.map (function (track) {
+	    var r = track.radius || rot.defaultTrackRadius
+            return typeof(r) == 'function' ? r(scale,trackRadiusScale) : r*trackRadiusScale
+        })
+
+        var r = 0
+        this.trackDistanceFromEdge = []
+        for (var n = 0; n < this.tracks.length; ++n) {
+            this.trackDistanceFromEdge.push (r)
+            r += this.trackRadius[n]
+        }
+        this.totalTrackRadius = r
+    },
+
     minRadius: function (trackNum) {
-        return this.radius * this.scale - (this.trackOutsideRadius[trackNum] + this.trackRadius[trackNum]) * this.trackRadiusScale + 1
+        return this.radius * this.scale - this.trackDistanceFromEdge[trackNum] - this.trackRadius[trackNum] + 1
     },
 
     maxRadius: function (trackNum) {
-        return this.radius * this.scale - this.trackOutsideRadius[trackNum] * this.trackRadiusScale
+        return this.radius * this.scale - this.trackDistanceFromEdge[trackNum]
     },
 
     innerRadius: function() {
