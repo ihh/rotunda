@@ -69,11 +69,15 @@ return declare( null, {
         this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale) / Math.log(this.maxScale)) : 1
 
         // build view
+	d3.select("#"+this.id)
+	    .attr("class", "rotunda_container")
+
         this.createNavBox (query("#"+this.id)[0])
         
         this.svg = d3.select("#"+this.id)
             .append("svg")
             .attr("id", this.id+"_svg")
+            .attr("class", "rotunda_svg")
             .attr("width", this.width)
             .attr("height", this.height)
 
@@ -114,10 +118,13 @@ return declare( null, {
         return -Math.cos(theta) * r
     },
     
-    // createNavBox lifted from JBrowse Browser.js
+    // createNavBox mostly lifted from JBrowse Browser.js
     createNavBox: function( parent ) {
         var align = 'left';
-        var navbox = dojo.create( 'div', { id: 'navbox', style: { 'text-align': align } }, parent );
+        var navbox = dojo.create( 'div', { id: parent.id+'_navbox',
+					   class: 'rotunda_navbox',
+					   style: { 'text-align': align } },
+				  parent );
 
         var four_nbsp = String.fromCharCode(160); four_nbsp = four_nbsp + four_nbsp + four_nbsp + four_nbsp;
         navbox.appendChild(document.createTextNode( four_nbsp ));
