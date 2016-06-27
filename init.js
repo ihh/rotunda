@@ -4,12 +4,20 @@ require(
     ["dojo/request/xhr",
      "dojo/Deferred",
      "Rotunda/Rotunda",
+     "Rotunda/View/Track/Arc",
+     "Rotunda/View/Track/Text",
+     "Rotunda/View/Track/Histogram",
+     "Rotunda/View/Track/Link",
      "Rotunda/util",
      "dojo/domReady!"],
 
     function(xhr,
              Deferred,
              Rotunda,
+	     ArcTrack,
+	     TextTrack,
+	     HistogramTrack,
+	     LinkTrack,
              util) {
         
         var refSeqNameLen = [
@@ -51,21 +59,21 @@ require(
                      type: nl[0] }
         })
 
-        var refSeqTrack = { id: "ref_seqs",
-                            label: "Chromosomes",
-                            type: "feature",
-                            features: refSeqFeatures }
+        var refSeqTrack = new ArcTrack ({ id: "ref_seqs",
+					  label: "Chromosomes",
+					  type: "arc",
+					  features: refSeqFeatures })
 
         var refSeqNameFeatures = refSeqNameLen.map (function (nl) {
             return { seq: nl[0],
                      pos: Math.floor(nl[1]/2),
                      label: nl[0].replace("chr","") }
         })
-        var refSeqNameTrack = { id: "ref_seq_names",
-                                label: "Chromosome names",
-                                type: "text",
-                                radius: function(scale,trackRadiusScale) { return 30 },  // do not scale
-                                features: refSeqNameFeatures }
+        var refSeqNameTrack = new TextTrack ({ id: "ref_seq_names",
+					       label: "Chromosome names",
+					       type: "text",
+					       radius: function(scale,trackRadiusScale) { return 30 },  // do not scale
+					       features: refSeqNameFeatures })
 
         var cytoTrack, segDupTrack, gcTrack
 
@@ -89,10 +97,10 @@ require(
 
             console.log (cytoFeatures.length + " cytogenetic bands")
 
-            cytoTrack = { id: "cyto_bands",
-                          label: "Cytogenetic bands",
-                          type: "feature",
-                          features: cytoFeatures }
+            cytoTrack = new ArcTrack ({ id: "cyto_bands",
+					label: "Cytogenetic bands",
+					type: "arc",
+					features: cytoFeatures })
 
             return xhr ("GRCh37GenomicSuperDup.links", {
                 handleAs: "text"
@@ -119,10 +127,10 @@ require(
 
             console.log (segDup.length + " segmental duplications of size >= " + minSegDupSize + "bp")
             
-            segDupTrack = { id: "segdup",
-                            label: "Segmental duplications",
-                            type: "link",
-                            features: segDup }
+            segDupTrack = new LinkTrack ({ id: "segdup",
+					   label: "Segmental duplications",
+					   type: "link",
+					   features: segDup })
 
             return xhr ("hg19.gc10Mb.txt", {
                 handleAs: "text"
@@ -141,11 +149,11 @@ require(
                              value: parseFloat (fields[3]) }
                 })
 
-            gcTrack = { id: "gc_hist",
-                        label: "GC content",
-                        type: "histogram",
-                        radius: 30,
-                        features: gcFeatures }
+            gcTrack = new HistogramTrack ({ id: "gc_hist",
+					    label: "GC content",
+					    type: "histogram",
+					    radius: 30,
+					    features: gcFeatures })
 
             console.log (gcFeatures.length + " GC-content regions")
 
