@@ -38,8 +38,8 @@ return declare( null, {
         this.radius = Math.max (config.radius || 300,
                                 this.totalTrackRadius + this.minInnerRadius)
 
-        this.width = this.radius * 2
-        this.height = this.radius * 2
+        this.width = config.width || this.radius * 2
+        this.height = config.height || this.width
 
 	// set up coordinate system
         this.refSeqLen = config.refSeqLen || [360]
@@ -54,22 +54,22 @@ return declare( null, {
         this.refSeqStartAngle.pop()
         this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
 
-	// initialize view coords
-        this.scale = 1
-        this.rotate = 0
-        
-        this.colors = colors
-
 	// minBasesPerView = width / (pixelsPerBase * scale)
  	var minBasesPerView = 1e6
-        this.maxScale = Math.pow (2, Math.floor (Math.log (Math.max (1, this.width / (this.pixelsPerBaseAtEdge() * minBasesPerView))) / Math.log(2)))
-        this.minScale = 1
+        this.minScale = Math.min (1, this.width / (2 * this.radius))
+        this.maxScale = this.minScale * Math.pow (2, Math.floor (Math.log (Math.max (1, this.width / (this.pixelsPerBaseAtEdge() * minBasesPerView))) / Math.log(2)))
 
         var maxTrackScale = config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
 
 	var verticalCurvatureDropThreshold = .9
 	this.nonlinearScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
         this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.nonlinearScaleThreshold) / Math.log(this.maxScale/this.nonlinearScaleThreshold)) : 1
+
+	// initialize view coords
+        this.scale = this.minScale
+        this.rotate = 0
+        
+        this.colors = colors
 
         // build view
 	d3.select("#"+this.id)
@@ -254,14 +254,15 @@ return declare( null, {
 
     zoomTo: function (newScale) {
         var rot = this
-        new Zoomer (newScale,
-                    rot,
-                    function() {
-                        rot.scale = newScale
-			rot.calculateTrackSizes()
+	if (newScale != rot.scale)
+            new Zoomer (newScale,
+			rot,
+			function() {
+                            rot.scale = newScale
+			    rot.calculateTrackSizes()
                         rot.redraw()
-                    },
-                    700)
+			},
+			700)
     },
 
     gTransformRotate: function (degrees) {
