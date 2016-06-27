@@ -67,8 +67,8 @@ return declare( null, {
         this.maxScale = Math.max (1, 1 / (this.radsPerBase * this.radius))
         this.minScale = 1
 
-        this.maxTrackRadius = 100
-        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(this.maxTrackRadius) / Math.log(this.maxScale)) : 1
+        var maxTrackScale = config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / 2*Math.log(2)) : 1)
+        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale) / Math.log(this.maxScale)) : 1
         
         this.createNavBox (query("#"+this.id)[0])
         
@@ -340,6 +340,31 @@ return declare( null, {
                 .innerRadius(minRadius)
                 .outerRadius(maxRadius)
                 .startAngle (function (feature) {
+                    return rot.coordToAngle (feature.seq, feature.start)
+                }).endAngle (function (feature) {
+                    return rot.coordToAngle (feature.seq, feature.end)
+                })
+
+            data.append("path")
+                .attr("d", featureArc)
+                .attr("fill", featureColor)
+                .attr("stroke", featureColor)
+            break;
+
+        case "histogram":
+
+            var values = track.features.map (function (feature) { return feature.value })
+            var minValue = track.hasOwnProperty('minValue') ? track.minValue : Math.min.apply (this, values)
+            var maxValue = track.hasOwnProperty('maxValue') ? track.maxValue : Math.max.apply (this, values)
+            var baselineValue = track.hasOwnProperty('baselineValue') ? track.baselineValue : util.mean (values)
+            var val2radius = (maxRadius - minRadius) / (maxValue - minValue)
+
+            var featureArc = d3.svg.arc()
+                .innerRadius (function(feature) {
+                    return ((feature.value > baselineValue ? baselineValue : feature.value) - minValue) * val2radius + minRadius
+                }).outerRadius (function(feature) {
+                    return ((feature.value > baselineValue ? feature.value : baselineValue) - minValue) * val2radius + minRadius
+                }).startAngle (function (feature) {
                     return rot.coordToAngle (feature.seq, feature.start)
                 }).endAngle (function (feature) {
                     return rot.coordToAngle (feature.seq, feature.end)

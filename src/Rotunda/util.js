@@ -9,6 +9,14 @@ define([
            var Util
            Util = {
 
+               mean: function (list) {
+                   var sum = 0
+                   for (var i = 0; i < list.length; ++i) {
+                       sum += list[i]
+                   }
+                   return sum / list.length
+               },
+               
                listToCounts: function (list) {
 	           var c = {}
 	           list.forEach (function(x) {

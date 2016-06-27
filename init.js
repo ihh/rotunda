@@ -2,11 +2,13 @@ var rotunda
 
 require(
     ["dojo/request/xhr",
+     "dojo/Deferred",
      "Rotunda/Rotunda",
      "Rotunda/util",
      "dojo/domReady!"],
 
     function(xhr,
+             Deferred,
              Rotunda,
              util) {
         
@@ -65,13 +67,15 @@ require(
                                 radius: 30,
                                 features: refSeqNameFeatures }
 
+        var cytoTrack, segDupTrack, gcTrack
+
+        var nonempty_regex = /\S/
+
         xhr("cytoBand.txt", {
             handleAs: "text"
         }).then (function (cytoBandTxt) {
             
-            var nonempty_regex = /\S/
-                
-            var cyto = cytoBandTxt
+            var cytoFeatures = cytoBandTxt
                 .split("\n")
                 .filter (function (line) { return line.match (nonempty_regex) })
                 .map (function (line) { return line.split("\t") })
@@ -83,48 +87,74 @@ require(
                              type: fields[4] }
                 })
 
-            console.log (cyto.length + " cytogenetic bands")
+            console.log (cytoFeatures.length + " cytogenetic bands")
 
-            var cytoTrack = { id: "cyto_bands",
-                              label: "Cytogenetic bands",
-                              type: "feature",
-                              features: cyto }
+            cytoTrack = { id: "cyto_bands",
+                          label: "Cytogenetic bands",
+                          type: "feature",
+                          features: cytoFeatures }
 
-            xhr("GRCh37GenomicSuperDup.links", {
+            return xhr ("GRCh37GenomicSuperDup.links", {
                 handleAs: "text"
-            }).then (function (segDupTxt) {
-
-                var minSegDupSize = 100000
-                var segDup = segDupTxt
-                    .split("\n")
-                    .filter (function (line) { return line.match (nonempty_regex) })
-                    .map (function (line) { return line.split("\t") })
-                    .map (function (fields) {
-                        return { seq: fields[0],
-                                 start: fields[1],
-                                 end: fields[2],
-                                 otherSeq: fields[3],
-                                 otherStart: fields[4],
-                                 otherEnd: fields[5] }
-                    })
-                    .filter (function (link) {
-                        return isRefSeqName[link.seq] && isRefSeqName[link.otherSeq] && link.end - link.start >= minSegDupSize
-                    })
-
-                console.log (segDup.length + " segmental duplications of size >= " + minSegDupSize + "bp")
-                
-                var segDupTrack = { id: "segdup",
-                                    label: "Segmental duplications",
-                                    type: "link",
-                                    features: segDup }
-
-                rotunda = new Rotunda( { refSeqName: refSeqName,
-                                         refSeqLen: refSeqLen,
-                                         tracks: [ refSeqNameTrack,
-                                                   refSeqTrack,
-                                                   cytoTrack,
-                                                   segDupTrack ] })
             })
+            
+        }).then (function (segDupTxt) {
 
+            var minSegDupSize = 100000
+            var segDup = segDupTxt
+                .split("\n")
+                .filter (function (line) { return line.match (nonempty_regex) })
+                .map (function (line) { return line.split("\t") })
+                .map (function (fields) {
+                    return { seq: fields[0],
+                             start: fields[1],
+                             end: fields[2],
+                             otherSeq: fields[3],
+                             otherStart: fields[4],
+                             otherEnd: fields[5] }
+                })
+                .filter (function (link) {
+                    return isRefSeqName[link.seq] && isRefSeqName[link.otherSeq] && link.end - link.start >= minSegDupSize
+                })
+
+            console.log (segDup.length + " segmental duplications of size >= " + minSegDupSize + "bp")
+            
+            segDupTrack = { id: "segdup",
+                            label: "Segmental duplications",
+                            type: "link",
+                            features: segDup }
+
+            return xhr ("hg19.gc10Mb.txt", {
+                handleAs: "text"
+            })
+            
+        }).then (function (gcTxt) {
+
+            var gcFeatures = gcTxt
+                .split("\n")
+                .filter (function (line) { return line.match (nonempty_regex) })
+                .map (function (line) { return line.split(" ") })
+                .map (function (fields) {
+                    return { seq: fields[0],
+                             start: fields[1],
+                             end: fields[2],
+                             value: parseFloat (fields[3]) }
+                })
+
+            gcTrack = { id: "gc_hist",
+                        label: "GC content",
+                        type: "histogram",
+                        radius: 30,
+                        features: gcFeatures }
+
+            console.log (gcFeatures.length + " GC-content regions")
+
+            rotunda = new Rotunda( { refSeqName: refSeqName,
+                                     refSeqLen: refSeqLen,
+                                     tracks: [ refSeqNameTrack,
+                                               refSeqTrack,
+                                               cytoTrack,
+                                               gcTrack,
+                                               segDupTrack ] })
         })
     })
