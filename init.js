@@ -61,7 +61,6 @@ require(
 
         var refSeqTrack = new ArcTrack ({ id: "ref_seqs",
 					  label: "Chromosomes",
-					  type: "arc",
 					  features: refSeqFeatures })
 
         var refSeqNameFeatures = refSeqNameLen.map (function (nl) {
@@ -71,7 +70,6 @@ require(
         })
         var refSeqNameTrack = new TextTrack ({ id: "ref_seq_names",
 					       label: "Chromosome names",
-					       type: "text",
 					       radius: function(scale,trackRadiusScale) { return 30 },  // do not scale
 					       features: refSeqNameFeatures })
 
@@ -99,7 +97,6 @@ require(
 
             cytoTrack = new ArcTrack ({ id: "cyto_bands",
 					label: "Cytogenetic bands",
-					type: "arc",
 					features: cytoFeatures })
 
             return xhr ("GRCh37GenomicSuperDup.links", {
@@ -129,7 +126,6 @@ require(
             
             segDupTrack = new LinkTrack ({ id: "segdup",
 					   label: "Segmental duplications",
-					   type: "link",
 					   features: segDup })
 
             return xhr ("hg19.gc10Mb.txt", {
@@ -151,7 +147,6 @@ require(
 
             gcTrack = new HistogramTrack ({ id: "gc_hist",
 					    label: "GC content",
-					    type: "histogram",
 					    radius: 30,
 					    features: gcFeatures })
 
