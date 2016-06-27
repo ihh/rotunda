@@ -10,8 +10,8 @@ function Arc(config) {
 
 Arc.prototype = new Track()
 
-Arc.prototype.draw = function (rot, minRadius, maxRadius) {
-
+Arc.prototype.draw = function (rot, minRadius, maxRadius, minAngle, maxAngle) {
+    
     var featureColor = this.featureColor (rot)
     
     var featureArc = d3.svg.arc()

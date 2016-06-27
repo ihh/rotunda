@@ -316,9 +316,26 @@ return declare( null, {
             .attr("id", this.id+"_g")
             .attr("transform", "translate(" + this.width/2 + "," + this.radius * this.scale + ")")
 
+        var amin, amax
+        if (this.width >= this.scale * this.radius * 2) {
+            amin = 0
+            amax = 2*Math.PI
+        } else {
+            var aw = this.angularViewWidth()
+            amin = -this.rotate - aw/2
+            amax = -this.rotate + aw/2
+        }
+        
         this.tracks.forEach (function (track, trackNum) {
-            rot.drawTrack (track, trackNum)
+            rot.drawTrack (track, trackNum, amin, amax)
         })
+    },
+
+    drawTrack: function (track, trackNum, minAngle, maxAngle) {
+        var rot = this
+        var maxRadius = this.maxRadius (trackNum)
+        var minRadius = this.minRadius (trackNum)
+	track.draw (this, minRadius, maxRadius, minAngle, maxAngle)
     },
 
     pixelsPerBaseAtEdge: function (scale) {
@@ -391,12 +408,10 @@ return declare( null, {
     coordToAngle: function (seqName, pos) {
         return this.refSeqStartAngleByName[seqName] + pos * this.radsPerBase + this.rotate
     },
-    
-    drawTrack: function (track, trackNum) {
-        var rot = this
-        var maxRadius = this.maxRadius (trackNum)
-        var minRadius = this.minRadius (trackNum)
-	track.draw (this, minRadius, maxRadius)
+
+    angularViewWidth: function (scale) {
+        scale = scale || this.scale
+        return 2*Math.atan2 (this.width / 2, this.radius * this.scale - this.height)
     }
 })
 
