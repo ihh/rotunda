@@ -1,4 +1,4 @@
-define(['Rotunda/View/Animation'],
+define(['JBrowse/View/Animation'],
       function(Animation) {
 
 /**
