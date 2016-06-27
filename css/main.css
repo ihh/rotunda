@@ -11,10 +11,14 @@
     border-color: #f8f8f8;
 }
 
-.rotunda_svg {
+.rotunda_svg_wrapper {
     border-style: solid;
     border-width: 0px 1px 1px 1px;
     border-color: #f8f8f8;
+    overflow-y: scroll;
+}
+
+.rotunda_svg {
 }
 
 .icon.nav {

@@ -5,7 +5,7 @@ define(['Rotunda/View/Animation'],
  * @class
  */
 function Slider(radians, rotunda, callback, time) {
-    Animation.call(this, rotunda, callback, time);
+    Animation.call(this, rotunda, callback, time)
     this.rotunda = rotunda
     this.degrees = (radians - rotunda.rotate) * 180 / Math.PI
 }

@@ -66,40 +66,42 @@ return declare( null, {
         this.minScale = 1
 
         var maxTrackScale = config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
-        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale) / Math.log(this.maxScale)) : 1
+
+	var verticalCurvatureDropThreshold = .9
+	this.nonlinearScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
+        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.nonlinearScaleThreshold) / Math.log(this.maxScale/this.nonlinearScaleThreshold)) : 1
 
         // build view
 	d3.select("#"+this.id)
 	    .attr("class", "rotunda_container")
 
         this.createNavBox (query("#"+this.id)[0])
-        
-        this.svg = d3.select("#"+this.id)
-            .append("svg")
-            .attr("id", this.id+"_svg")
-            .attr("class", "rotunda_svg")
-            .attr("width", this.width)
-            .attr("height", this.height)
 
-        var drag = d3.behavior.drag()
+        this.svg_wrapper = d3.select("#"+this.id)
+	    .append("div")
+            .attr("class", "rotunda_svg_wrapper")
+            .attr("style", "height: " + this.height + "px")
+
+        this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
                 rot.dragDeltaRadians = 0
             })
             .on("drag", function(d,i) {
+		var x = d3.event.x
+		var y = d3.event.y + rot.svg_wrapper[0][0].scrollTop
                 if (!rot.dragging) {
-                    var xDragStart = d3.event.x - d3.event.dx
-                    var yDragStart = d3.event.y - d3.event.dy
+                    var xDragStart = x - d3.event.dx
+                    var yDragStart = y - d3.event.dy
                     rot.dragInitRadians = rot.xyAngle (xDragStart, yDragStart)
                     rot.dragging = true
                 }
-                rot.dragDeltaRadians = rot.xyAngle (d3.event.x, d3.event.y) - rot.dragInitRadians
+                rot.dragDeltaRadians = rot.xyAngle (x, y) - rot.dragInitRadians
                 rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
             })
             .on("dragend", function(d,i) {
                 rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
                 rot.dragging = false
             })
-        this.svg.call(drag)
         
         this.draw()
     },
@@ -269,11 +271,17 @@ return declare( null, {
             .attr("transform", "rotate(" + (-degrees) + ")")
     },
 
-    gTransformScale: function (factor) {
+    gTransformScale: function (factor, nonlinear, yShift) {
+	nonlinear = nonlinear || false
+	yShift = yShift || 0
+	var xfactor = factor, yfactor = factor
+	if (nonlinear) {
+	    yfactor = Math.pow (factor, this.trackRadiusScaleExponent)
+	}
         this.g.attr("transform",
-                    "scale(" + factor + ") translate(" + (this.width/2) / factor + "," + this.radius * this.scale + ")")
+                    "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / factor + "," + (this.radius * this.scale + yShift) + ")")
         d3.selectAll(".rotundaLabel")
-            .attr("transform", "scale(" + (1/factor) + ")")
+            .attr("transform", "scale(" + (1/xfactor) + "," + (1/yfactor) + ")")
     },
 
     drawCircle: function (radius, stroke) {
@@ -286,12 +294,21 @@ return declare( null, {
     },
 
     redraw: function() {
-        this.g.remove()
+        this.svg.remove()
         this.draw()
     },
     
     draw: function() {
         var rot = this
+        
+        this.svg = this.svg_wrapper
+            .append("svg")
+            .attr("id", this.id+"_svg")
+            .attr("class", "rotunda_svg")
+            .attr("width", this.width)
+            .attr("height", Math.max (this.height, this.totalTrackRadius))
+
+        this.svg.call(this.dragBehavior)
 
         this.g = this.svg
             .append("g")
@@ -311,8 +328,33 @@ return declare( null, {
 	return this.width / this.pixelsPerBaseAtEdge(scale)
     },
 
+    radiansPerViewAtEdge: function (scale) {
+	// width / (radius * scale)
+	return this.radsPerBase * this.basesPerViewAtEdge()
+    },
+
     trackRadiusScale: function (scale) {
-	    return Math.pow (scale, this.trackRadiusScaleExponent)
+	return (scale <= this.nonlinearScaleThreshold
+		? scale
+		: this.nonlinearScaleThreshold * Math.pow (scale / this.nonlinearScaleThreshold, this.trackRadiusScaleExponent))
+    },
+
+    calculateTrackSize: function (track, scale, trackRadiusScale) {
+	scale = scale || this.scale
+	trackRadiusScale = trackRadiusScale || this.trackRadiusScale(scale)
+	var r = track.radius || this.defaultTrackRadius
+        return typeof(r) == 'function' ? r(scale,trackRadiusScale) : r*trackRadiusScale
+    },
+
+    calculateTotalTrackSize: function (scale) {
+	var rot = this
+	return this.tracks.reduce (function (tot, track) {
+	    return tot + rot.calculateTrackSize (track, scale)
+	}, 0)
+    },
+
+    calculateOuterTrackSize: function (scale) {
+	return this.tracks.length ? this.calculateTrackSize(this.tracks[0],scale) : 0
     },
 
     calculateTrackSizes: function (scale, trackRadiusScale) {
@@ -321,8 +363,7 @@ return declare( null, {
 	trackRadiusScale = trackRadiusScale || this.trackRadiusScale(scale)
 
         this.trackRadius = this.tracks.map (function (track) {
-	    var r = track.radius || rot.defaultTrackRadius
-            return typeof(r) == 'function' ? r(scale,trackRadiusScale) : r*trackRadiusScale
+	    return rot.calculateTrackSize (track, scale, trackRadiusScale)
         })
 
         var r = 0
