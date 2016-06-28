@@ -56,7 +56,9 @@ return declare( null, {
         this.radsPerBase = 2 * Math.PI * (1 - this.totalSpacerFraction) / totalLen
         this.refSeqStartAngle = this.refSeqLen.reduce (function (list,len) { return list.concat (list[list.length-1] + rot.spacerRads + rot.radsPerBase*len) }, [0])
         this.refSeqStartAngle.pop()
+
         this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
+        this.refSeqLenByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqLen[i]] }))
 
 	// minBasesPerView = width / (pixelsPerBase * scale)
  	var minBasesPerView = 1e6
@@ -427,7 +429,7 @@ return declare( null, {
 	scale = scale || this.scale
 	trackRadiusScale = trackRadiusScale || this.trackRadiusScale(scale)
 	var r = track.radius || this.defaultTrackRadius
-        return typeof(r) == 'function' ? r(scale,trackRadiusScale) : r*trackRadiusScale
+        return typeof(r) == 'function' ? r.call(track,scale,trackRadiusScale) : r*trackRadiusScale
     },
 
     calculateTotalTrackSize: function (scale) {
@@ -475,9 +477,81 @@ return declare( null, {
         return this.refSeqStartAngleByName[seqName] + pos * this.radsPerBase + this.rotate
     },
 
+    refSeqAngularRange: function (seqName) {
+        var amin, amax
+	amin = this.refSeqStartAngleByName[seqName]
+	amax = amin + this.radsPerBase * this.refSeqLenByName[seqName]
+	return [amin, amax]
+    },
+
+    refSeqAngularRangeOverlap: function (amin, amax, seqName) {
+	var sr = this.refSeqAngularRange (seqName)
+	var smin = sr[0], smax = sr[1]
+	var pi2 = 2 * Math.PI
+	while (amax < smin) {
+	    amin += pi2
+	    amax += pi2
+	}
+	return amin <= smax ? [amin, amax] : false
+    },
+
+    canonicalAngle: function (angle) {
+	var pi2 = 2 * Math.PI
+	while (angle < 0) angle += pi2
+	while (angle > pi2) angle -= pi2
+	return angle
+    },
+
+    angleToSeqName: function (angle) {
+	angle = this.canonicalAngle(angle)
+	for (var i = 1; i < this.refSeqStartAngle.length; ++i)
+	    if (this.refSeqStartAngle[i] - this.spacerRads/2 > angle)
+		return this.refSeqName[i-1]
+	return this.refSeqName[this.refSeqName.length-1]
+    },
+
+    angleToUnboundedCoord: function (angle, seqName) {
+        return Math.round ((angle - this.refSeqStartAngleByName[seqName]) / this.radsPerBase)
+    },
+
+    angleToCoord: function (angle, seqName) {
+	if (typeof(seqName) === 'undefined')
+	    seqName = this.angleToSeqName (angle)
+        var pos = this.angleToUnboundedCoord (angle, seqName)
+	return Math.max (1, Math.min (this.refSeqLenByName[seqName], pos))
+    },
+
     angularViewWidth: function (scale) {
         scale = scale || this.scale
         return 2*Math.atan2 (this.width / 2, this.radius * this.scale - this.height)
+    },
+
+    angularViewRange: function() {
+        var amin, amax
+        if (this.width >= this.scale * this.radius * 2) {
+            amin = 0
+            amax = 2*Math.PI
+        } else {
+            var aw = this.angularViewWidth()
+            amin = -this.rotate - aw/2
+            amax = -this.rotate + aw/2
+        }
+	return [amin, amax]
+    },
+
+    intervalsInView: function() {
+	var rot = this
+	var ar = this.angularViewRange()
+	var amin = ar[0], amax = ar[1]
+	var features = []
+	this.refSeqName.forEach (function (seqName) {
+	    var overlap = rot.refSeqAngularRangeOverlap (amin, amax, seqName)
+	    if (overlap)
+		features.push ({ seq: seqName,
+				 start: rot.angleToCoord (overlap[0], seqName),
+				 end: rot.angleToCoord (overlap[1], seqName) })
+	})
+	return features
     }
 })
 

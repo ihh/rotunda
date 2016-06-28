@@ -8,6 +8,7 @@ require(
      "Rotunda/View/Track/Text",
      "Rotunda/View/Track/Histogram",
      "Rotunda/View/Track/Link",
+     "Rotunda/View/Track/Ruler",
      "Rotunda/util",
      "dojo/domReady!"],
 
@@ -18,6 +19,7 @@ require(
 	     TextTrack,
 	     HistogramTrack,
 	     LinkTrack,
+	     RulerTrack,
              util) {
         
         var refSeqNameLen = [
@@ -72,6 +74,10 @@ require(
 					       label: "Chromosome names",
 					       radius: function(scale,trackRadiusScale) { return 30 },  // do not scale
 					       features: refSeqNameFeatures })
+
+	var rulerTrack = new RulerTrack ({ id: "ruler",
+					   label: "Ruler ticks",
+					 })
 
         var cytoTrack, segDupTrack, gcTrack
 
@@ -155,6 +161,7 @@ require(
             rotunda = new Rotunda( { refSeqName: refSeqName,
                                      refSeqLen: refSeqLen,
                                      tracks: [ refSeqNameTrack,
+					       rulerTrack,
                                                refSeqTrack,
                                                cytoTrack,
                                                gcTrack,

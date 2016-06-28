@@ -17,9 +17,9 @@ return declare (null,
         return rot.id + '-track-label-' + this.id
     },
     
-    d3data: function (rot) {
+    d3data: function (rot, data) {
         return rot.g.selectAll("#track_"+this.id)
-            .data(this.features)
+            .data(data || this.features)
             .enter()
     },
 
