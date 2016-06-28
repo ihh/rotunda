@@ -13,6 +13,14 @@ return declare (Track,
 
     radius: 0,
 
+    featureLabelFunc: function() {
+	var track = this
+	return function (feature) {
+	    return track.label + "<br/>" + feature.seq + " (" + feature.start + ".." + feature.end + ")<br/>"
+		+ feature.otherSeq + " (" + feature.otherStart + ".." + feature.otherEnd + ")"
+	}
+    },
+
     draw: function (rot, minRadius, maxRadius) {
 
         var featureColor = this.featureColorFunc()
@@ -32,11 +40,12 @@ return declare (Track,
                 return t
             })
 
-        this.d3data(rot).append("path")
+        var path = this.d3data(rot).append("path")
             .attr("d", featureChord)
             .attr("fill", featureColor)
             .attr("stroke", featureColor)
 
+	this.addMouseover (path)
     }
 
 })

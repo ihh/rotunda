@@ -18,7 +18,11 @@ return declare (null,
     },
     
     d3data: function (rot, data) {
-        return rot.g.selectAll("#track_"+this.id)
+        this.g = rot.g
+	    .append('g')
+	    .attr('id','#g_'+this.id)
+        return this.g
+	    .selectAll('#track_'+this.id)
             .data(data || this.features)
             .enter()
     },
@@ -44,6 +48,13 @@ return declare (null,
 	return undefined
     },
 
+    featureLabelFunc: function() {
+	var track = this
+	return function (feature) {
+	    return track.label + "<br/>" + (feature.label || feature.id)
+	}
+    },
+
     addTooltip: function() {
 	return d3.select("body")
 	    .append("div")
@@ -58,9 +69,7 @@ return declare (null,
 	if (highlightColor)
 	    featureColor = config.featureColor || this.featureColorFunc()
 
-	var featureLabel = config.featureLabel || function (feature) {
-	    return feature.label || feature.id
-	}
+	var featureLabel = config.featureLabel || this.featureLabelFunc()
 
 	var tooltip = this.addTooltip()
 
@@ -69,10 +78,11 @@ return declare (null,
 		var rgb = util.colorToRgb (highlightColor (feature))
 		this.setAttribute ('fill', rgb)
 		this.setAttribute ('stroke', rgb)
+		this.parentNode.appendChild (this)  // put on top
 	    } else
-		this.setAttribute ('style', 'opacity:.5;')
+		this.setAttribute ('style', 'opacity:.5;z-index:1;')
 	    tooltip.style("visibility", "visible")
-		.text (featureLabel (feature))
+		.html (featureLabel (feature))
 	}).on("mousemove", function(feature) {
 	    tooltip.style("top", (event.pageY-10)+"px").style("left",(event.pageX+10)+"px")
 	}).on("mouseout", function(feature) {
@@ -82,7 +92,7 @@ return declare (null,
 		this.setAttribute ('fill', rgb)
 		this.setAttribute ('stroke', rgb)
 	    } else
-		this.setAttribute ('style', 'opacity:1;')
+		this.setAttribute ('style', '')
 	})
     }
 })

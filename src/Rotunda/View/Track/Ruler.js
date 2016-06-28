@@ -26,6 +26,8 @@ return declare (Track,
 	return refSeqName
     },
 
+    units: "bp",
+
     showBase: false,
 
     draw: function (rot, minRadius, maxRadius, minAngle, maxAngle) {
@@ -57,6 +59,7 @@ return declare (Track,
 		 pos < feature.end;
 		 pos += tickSep)
 		seqTicks.push ({ seq: feature.seq,
+				 pos: pos + 1,
 				 angle: rot.coordToAngle (feature.seq, pos + 1),
 				 minRadius: minRadius,
 				 maxRadius: ((pos % bigTickSep)
@@ -79,9 +82,14 @@ return declare (Track,
                 return feature.angle
             })
 
-        this.d3data(rot,ticks).append("path")
+        var tickPath = this.d3data(rot,ticks).append("path")
             .attr("d", tickArc)
             .attr("stroke", "grey")
+
+	this.addMouseover (tickPath,
+			   { featureLabel: function (feature) {
+			       return feature.seq + '<br/>' + feature.pos + track.units
+			   }})
 
 	if (this.showBase) {
             var seqArc = d3.svg.arc()

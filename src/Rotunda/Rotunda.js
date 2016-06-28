@@ -7,7 +7,8 @@ define([
     'd3/d3',
     'Rotunda/util',
     'Rotunda/View/Animation/Zoomer',
-    'Rotunda/View/Animation/Slider'
+    'Rotunda/View/Animation/Slider',
+    'Rotunda/detect-element-resize'
 ],
        function(
            declare,
@@ -43,7 +44,7 @@ return declare( null, {
         this.width = config.width || this.radius * 2
         this.height = config.height || this.width
 
-	// set up coordinate system
+	// set up angular coordinate system
         this.refSeqLen = config.refSeqLen || [360]
         this.refSeqName = config.refSeqName || config.refSeqLen.map (function(n,i) { return "seq" + (i+1) })
 
@@ -58,23 +59,11 @@ return declare( null, {
         this.refSeqStartAngleByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqStartAngle[i]] }))
         this.refSeqLenByName = util.keyValListToObj (this.refSeqName.map (function (n,i) { return [n, rot.refSeqLen[i]] }))
 
-	// minBasesPerView = width / (pixelsPerBase * scale)
- 	var minBasesPerView = 1e6
-        this.minScale = Math.min (1, this.width / (2 * this.radius))
-        this.maxScale = this.minScale * Math.pow (2, Math.floor (Math.log (Math.max (1, this.width / (this.pixelsPerBaseAtEdge() * minBasesPerView))) / Math.log(2)))
-
-        var maxTrackScale = config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
-
-	var verticalCurvatureDropThreshold = .9
-	this.nonlinearScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
-        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.nonlinearScaleThreshold) / Math.log(this.maxScale/this.nonlinearScaleThreshold)) : 1
-
 	// initialize view coords
-        this.scale = this.minScale
         this.rotate = 0
 
         // build view
-        dojo.addClass( document.body, this.config.theme || "tundra")  //< tundra dijit theme
+        dojo.addClass( document.body, this.config.theme || "tundra")  // tundra dijit theme
 
         // slightly funky mixture of dojo/d3 here...
         // use dojo to create navbox and track list
@@ -82,10 +71,9 @@ return declare( null, {
         this.container = dojoContainer[0]
 
         this.container.setAttribute("class", "rotunda-container")
-        this.container.setAttribute("style", "width: " + this.width + "px")
-      
+
         this.createNavBox (this.container)
-        
+
         this.viewContainer = dojo.create( 'div', { id: this.id+'-view',
 					           class: 'rotunda-view' },
 				          this.container );
@@ -97,6 +85,8 @@ return declare( null, {
             .attr("id", this.id+"-svg-wrapper")
             .attr("class", "rotunda-svg-wrapper")
             .attr("style", "height: " + this.height + "px")
+
+	addResizeListener (this.svg_wrapper[0][0], dojo.hitch (this, this.resizeCallback))
         
         this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
@@ -121,9 +111,46 @@ return declare( null, {
 
         // create track list
         this.createTrackList (this.viewContainer)
+
+	// initialize scales and draw
+	this.initScales()
+    },
+
+    initScales: function() {
+        this.container.setAttribute("style", "width: " + this.width + "px")
+
+	// minBasesPerView = width / (pixelsPerBase * scale)
+ 	var minBasesPerView = 1e6
+        this.minScale = Math.min (1, this.width / (2 * this.radius))
+        this.maxScale = this.minScale * Math.pow (2, Math.floor (Math.log (Math.max (1, this.width / (this.pixelsPerBaseAtEdge() * minBasesPerView))) / Math.log(2)))
+
+        var maxTrackScale = this.config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
+
+	var verticalCurvatureDropThreshold = .9
+	this.nonlinearScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
+        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.nonlinearScaleThreshold) / Math.log(this.maxScale/this.nonlinearScaleThreshold)) : 1
+
+	// initialize view coords
+	if (this.scale)
+            this.scale = Math.max (this.minScale, Math.min (this.maxScale, this.scale))
+	else
+	    this.scale = this.minScale
         
         // draw
         this.draw()
+    },
+
+    resizeCallback: function() {
+	if (this.resizeTimeout)
+	    clearTimeout (this.resizeTimeout)
+	this.resizeTimeout = setTimeout (dojo.hitch (this, this.resize), 200)
+    },
+
+    resize: function() {
+	delete this.resizeTimeout
+	this.width = this.svg_wrapper[0][0].clientWidth
+	this.clear()
+	this.initScales()
     },
 
     xyAngle: function(x,y) {
@@ -355,9 +382,13 @@ return declare( null, {
             .attr("cy",0)
     },
 
-    redraw: function() {
+    clear: function() {
 	d3.selectAll('.rotunda-tooltip').remove()
         this.svg.remove()
+    },
+
+    redraw: function() {
+	this.clear()
         this.draw()
     },
     

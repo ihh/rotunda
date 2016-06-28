@@ -72,7 +72,7 @@ require(
 					   }
 					 })
 
-        var cytoTrack, segDupTrack, gcTrack
+        var cytoTrack, segDupTrack100kb, segDupTrack200kb, gcTrack
 
         var nonempty_regex = /\S/
 
@@ -104,7 +104,15 @@ require(
             
         }).then (function (segDupTxt) {
 
-            var minSegDupSize = 100000
+	    function segDupFilter (minSegDupSize, maxSegDupSize) {
+		return function (link) {
+		    var dupSize = link.end - link.start
+		    if (maxSegDupSize && dupSize >= maxSegDupSize)
+			return false
+		    return dupSize >= minSegDupSize
+		}
+	    }
+
             var segDup = segDupTxt
                 .split("\n")
                 .filter (function (line) { return line.match (nonempty_regex) })
@@ -118,14 +126,29 @@ require(
                              otherEnd: fields[5] }
                 })
                 .filter (function (link) {
-                    return isRefSeqName[link.seq] && isRefSeqName[link.otherSeq] && link.end - link.start >= minSegDupSize
+                    return isRefSeqName[link.seq] && isRefSeqName[link.otherSeq]
                 })
+		
 
-            console.log (segDup.length + " segmental duplications of size >= " + minSegDupSize + "bp")
+	    var segDup100kb = segDup.filter (segDupFilter (1e5, 2e5))
+            console.log (segDup100kb.length + " segmental duplications of size >= 100kb")
             
-            segDupTrack = new LinkTrack ({ id: "segdup",
-					   label: "Segmental duplications",
-					   features: segDup })
+            segDupTrack100kb = new LinkTrack ({ id: "segdup100k",
+						label: "Segmental duplications over 100kb",
+						color: function() { return 'blue' },
+						highlightColor: function() { return 'red' },
+						features: segDup100kb })
+
+	    var segDup200kb = segDup.filter (segDupFilter (2e5))
+            console.log (segDup200kb.length + " segmental duplications of size >= 200kb")
+
+            segDupTrack200kb = new LinkTrack ({ id: "segdup200kb",
+					      label: "Segmental duplications over 200kb",
+					      color: function() { return 'cyan' },
+					      highlightColor: function() { return 'red' },
+					      features: segDup200kb })
+
+	    
 
             return xhr ("hg19.gc10Mb.txt", {
                 handleAs: "text"
@@ -158,6 +181,7 @@ require(
                                                refSeqTrack,
                                                cytoTrack,
                                                gcTrack,
-                                               segDupTrack ] })
+                                               segDupTrack200kb,
+					       segDupTrack100kb] })
         })
     })

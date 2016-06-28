@@ -15,16 +15,34 @@ return declare (Track,
 
     units: "",
 
+    featureLabelFunc: function() {
+	var track = this
+	return function (feature) {
+	    return track.label + "<br/>" + feature.seq + " (" + feature.start + ".." + feature.end + ")<br/>" + feature.value + track.units
+	}
+    },
+
+    highColor: 'green',
+    lowColor: 'dgreen',
+    featureColorFunc: function (baseline) {
+	baseline = baseline || 0
+	var track = this
+	return function (feature) {
+	    return util.colorToRgb (feature.value >= baseline ? track.highColor : track.lowColor)
+	}
+    },
+
     draw: function (rot, minRadius, maxRadius) {
 
 	var track = this
-        var featureColor = this.featureColorFunc()
 
         var values = this.features.map (function (feature) { return feature.value })
         var minValue = this.hasOwnProperty('minValue') ? this.minValue : Math.min.apply (this, values)
         var maxValue = this.hasOwnProperty('maxValue') ? this.maxValue : Math.max.apply (this, values)
         var baselineValue = this.hasOwnProperty('baselineValue') ? this.baselineValue : util.mean (values)
         var val2radius = (maxRadius - minRadius) / (maxValue - minValue)
+
+        var featureColor = this.featureColorFunc (baselineValue)
 
         var featureArc = d3.svg.arc()
             .innerRadius (function(feature) {
@@ -42,12 +60,7 @@ return declare (Track,
             .attr("fill", featureColor)
             .attr("stroke", featureColor)
 
-	var featureLabel = function (feature) {
-	    return feature.seq + " (" + feature.start + ".." + feature.end + "): " + feature.value + track.units
-	}
-
-	this.addMouseover (path,
-			   { featureLabel: featureLabel })
+	this.addMouseover (path)
     }
 })
 
