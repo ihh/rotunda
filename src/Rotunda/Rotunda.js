@@ -132,7 +132,7 @@ return declare( null, {
 
     xyAngle: function(x,y) {
         var dx = x - this.width/2
-        var dy = y - this.radius * this.scale
+        var dy = y - this.outerRadius()
         return Math.atan2(-dx,dy)
     },
 
@@ -274,7 +274,6 @@ return declare( null, {
                           var newTrackOrder = []
                           for (var i = 0; i < trackList.children.length; ++i)
                               newTrackOrder.push (idToTrack[trackList.children[i].id])
-                          console.log (newTrackOrder)
                           rot.tracks = newTrackOrder
 			  rot.calculateTrackSizes()
                           rot.redraw()
@@ -289,7 +288,7 @@ return declare( null, {
     slide: function(distance) {
         var rotunda = this
         if (this.animation) return;
-        var deltaRads = 2 * distance * Math.atan (.5 * this.width / (this.radius * this.scale))
+        var deltaRads = 2 * distance * Math.atan (.5 * this.width / (this.outerRadius()))
         var newRads = this.rotate + deltaRads
         new Slider (rotunda,
                     function() { rotunda.rotateTo(newRads) },
@@ -332,7 +331,7 @@ return declare( null, {
 
     gTransformRotate: function (degrees) {
         this.g.attr("transform",
-                    "translate(" + this.width/2 + "," + this.radius*this.scale + ") rotate(" + degrees + ")")
+                    "translate(" + this.width/2 + "," + this.outerRadius() + ") rotate(" + degrees + ")")
         this.labels
             .attr("transform", "rotate(" + (-degrees) + ")")
     },
@@ -345,7 +344,7 @@ return declare( null, {
 	    yfactor = Math.pow (factor, this.trackRadiusScaleExponent)
 	}
         this.g.attr("transform",
-                    "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / factor + "," + (this.radius * this.scale + yShift) + ")")
+                    "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / factor + "," + (this.outerRadius() + yShift) + ")")
         this.labels
             .attr("transform", "scale(" + (1/xfactor) + "," + (1/yfactor) + ")")
     },
@@ -355,8 +354,8 @@ return declare( null, {
             .attr("r", radius)
             .style("fill", "none")
             .style("stroke", stroke)
-            .attr("cx",this.width/2)
-            .attr("cy",this.height/2)
+            .attr("cx",0)
+            .attr("cy",0)
     },
 
     redraw: function() {
@@ -379,21 +378,13 @@ return declare( null, {
         this.g = this.svg
             .append("g")
             .attr("id", this.id+"-g")
-            .attr("transform", "translate(" + this.width/2 + "," + this.radius * this.scale + ")")
-
-        var amin, amax
-        if (this.width >= this.scale * this.radius * 2) {
-            amin = 0
-            amax = 2*Math.PI
-        } else {
-            var aw = this.angularViewWidth()
-            amin = -this.rotate - aw/2
-            amax = -this.rotate + aw/2
-        }
+            .attr("transform", "translate(" + this.width/2 + "," + this.outerRadius() + ")")
 
         // draw tracks in reverse order, so higher-ranked link tracks appear on top
         for (var trackNum = this.tracks.length - 1; trackNum >= 0; --trackNum) {
-            rot.drawTrack (this.tracks[trackNum], trackNum, amin, amax)
+	    var ar = this.angularViewRange (this.minRadius (trackNum))
+	    var amin = ar[0], amax = ar[1]
+            this.drawTrack (this.tracks[trackNum], trackNum, amin, amax)
         }
 
         this.labels = d3.selectAll(".rotundaLabel")
@@ -428,7 +419,7 @@ return declare( null, {
     calculateTrackSize: function (track, scale, trackRadiusScale) {
 	scale = scale || this.scale
 	trackRadiusScale = trackRadiusScale || this.trackRadiusScale(scale)
-	var r = track.radius || this.defaultTrackRadius
+	var r = ('radius' in track) ? track.radius : this.defaultTrackRadius
         return typeof(r) == 'function' ? r.call(track,scale,trackRadiusScale) : r*trackRadiusScale
     },
 
@@ -462,15 +453,19 @@ return declare( null, {
     },
 
     minRadius: function (trackNum) {
-        return this.radius * this.scale - this.trackDistanceFromEdge[trackNum] - this.trackRadius[trackNum] + 1
+        return this.outerRadius() - this.trackDistanceFromEdge[trackNum] - this.trackRadius[trackNum] + 1
     },
 
     maxRadius: function (trackNum) {
-        return this.radius * this.scale - this.trackDistanceFromEdge[trackNum]
+        return this.outerRadius() - this.trackDistanceFromEdge[trackNum]
     },
 
     innerRadius: function() {
         return this.minRadius (this.tracks.length-1) - 1
+    },
+    
+    outerRadius: function() {
+        return this.radius * this.scale
     },
     
     coordToAngle: function (seqName, pos) {
@@ -521,27 +516,29 @@ return declare( null, {
 	return Math.max (1, Math.min (this.refSeqLenByName[seqName], pos))
     },
 
-    angularViewWidth: function (scale) {
-        scale = scale || this.scale
-        return 2*Math.atan2 (this.width / 2, this.radius * this.scale - this.height)
+    angularViewWidth: function (radius) {
+	radius = radius || this.innerRadius()
+        return 2*Math.asin ((this.width / 2) / radius)
     },
 
-    angularViewRange: function() {
+    angularViewRange: function (radius) {
+	radius = radius || this.innerRadius()
         var amin, amax
-        if (this.width >= this.scale * this.radius * 2) {
+        if (this.width >= this.scale * radius * 2) {
             amin = 0
             amax = 2*Math.PI
         } else {
-            var aw = this.angularViewWidth()
+            var aw = this.angularViewWidth (radius)
             amin = -this.rotate - aw/2
             amax = -this.rotate + aw/2
         }
 	return [amin, amax]
     },
 
-    intervalsInView: function() {
+    intervalsInView: function (radius) {
 	var rot = this
-	var ar = this.angularViewRange()
+	radius = radius || this.innerRadius()
+	var ar = this.angularViewRange (radius)
 	var amin = ar[0], amax = ar[1]
 	var features = []
 	this.refSeqName.forEach (function (seqName) {

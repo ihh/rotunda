@@ -65,18 +65,11 @@ require(
 					  label: "Chromosomes",
 					  features: refSeqFeatures })
 
-        var refSeqNameFeatures = refSeqNameLen.map (function (nl) {
-            return { seq: nl[0],
-                     pos: Math.floor(nl[1]/2),
-                     label: nl[0].replace("chr","") }
-        })
-        var refSeqNameTrack = new TextTrack ({ id: "ref_seq_names",
-					       label: "Chromosome names",
-					       radius: function(scale,trackRadiusScale) { return 30 },  // do not scale
-					       features: refSeqNameFeatures })
-
 	var rulerTrack = new RulerTrack ({ id: "ruler",
-					   label: "Ruler ticks",
+					   label: "Ruler",
+					   displayedName: function (refSeqName) {
+					       return refSeqName.replace("chr","")
+					   }
 					 })
 
         var cytoTrack, segDupTrack, gcTrack
@@ -160,8 +153,7 @@ require(
 
             rotunda = new Rotunda( { refSeqName: refSeqName,
                                      refSeqLen: refSeqLen,
-                                     tracks: [ refSeqNameTrack,
-					       rulerTrack,
+                                     tracks: [ rulerTrack,
                                                refSeqTrack,
                                                cytoTrack,
                                                gcTrack,

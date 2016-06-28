@@ -14,11 +14,23 @@ return declare (Track,
 	this.axisLabelScaleThreshold = config.axisLabelScaleThreshold || 4
     },
 
-    radius: function (scale,trackRadiusScale) {
-	return scale >= this.axisLabelScaleThreshold ? 28 : 8  // do not scale
+    showAxisLabels: function(scale) {
+	return scale >= this.axisLabelScaleThreshold
     },
 
+    radius: function (scale,trackRadiusScale) {
+	return this.showAxisLabels(scale) ? 48 : 28  // do not scale
+    },
+
+    displayedName: function (refSeqName) {
+	return refSeqName
+    },
+
+    showBase: false,
+
     draw: function (rot, minRadius, maxRadius, minAngle, maxAngle) {
+
+	var track = this
 
 	var baseRange = (maxAngle - minAngle) / rot.radsPerBase
 	var mag = Math.ceil(Math.log10(baseRange))
@@ -35,6 +47,8 @@ return declare (Track,
 	var smallTickMaxRadius = minRadius + 2
 	var midTickMaxRadius = minRadius + 4
 	var bigTickMaxRadius = minRadius + 8
+	var labelRadius = minRadius + 18
+	var nameRadius = minRadius + (this.showAxisLabels(rot.scale) ? 38 : 18)
         
 	var refSeqsInView = rot.intervalsInView()
 	var ticks = refSeqsInView.reduce (function (list, feature) {
@@ -48,14 +62,13 @@ return declare (Track,
 				 maxRadius: ((pos % bigTickSep)
 					     ? ((pos % midTickSep) ? smallTickMaxRadius : midTickMaxRadius)
 					     : bigTickMaxRadius),
-				 text: ((pos == 0 || pos % bigTickSep) ? undefined : ((pos / unitsSep) + units))
+				 text: ((pos == 0 || pos % bigTickSep) ? undefined : ((pos / unitsSep) + units)),
+				 textRadius: labelRadius
 			       })
 	    return list.concat (seqTicks)
 	}, [])
 
-	var featureColor = this.featureColor (rot)
-        
-        var featureArc = d3.svg.arc()
+        var tickArc = d3.svg.arc()
             .innerRadius (function (feature) {
 		return feature.minRadius
 	    }).outerRadius (function (feature) {
@@ -67,15 +80,31 @@ return declare (Track,
             })
 
         this.d3data(rot,ticks).append("path")
-            .attr("d", featureArc)
-            .attr("fill", featureColor)
-            .attr("stroke", featureColor)
+            .attr("d", tickArc)
+            .attr("stroke", "grey")
+
+	if (this.showBase) {
+            var seqArc = d3.svg.arc()
+		.innerRadius (function (feature) {
+		    return minRadius
+		}).outerRadius (function (feature) {
+		    return minRadius
+		}).startAngle (function (feature) {
+		    return rot.coordToAngle (feature.seq, feature.start)
+		}).endAngle (function (feature) {
+		    return rot.coordToAngle (feature.seq, feature.end)
+		})
+
+            this.d3data(rot,refSeqsInView).append("path")
+		.attr("d", seqArc)
+		.attr("stroke", "grey")
+	}
 
         var featureTransform = function (feature) {
             return "translate("
-                + rot.xPos ((maxRadius + bigTickMaxRadius) / 2, feature.angle)
+                + rot.xPos (feature.textRadius, feature.angle)
                 + ","
-                + rot.yPos ((maxRadius + bigTickMaxRadius) / 2, feature.angle)
+                + rot.yPos (feature.textRadius, feature.angle)
                 + ")"
         }
 
@@ -83,8 +112,17 @@ return declare (Track,
             return feature.text
         }
 
-	var labeledTicks = ticks.filter (function (t) { return t.text })
-        this.d3data(rot,labeledTicks).append("g")
+	var labels = ticks.filter (function (t) { return t.text })
+	var seqNames = refSeqsInView.map (function (feature) {
+	    return { seq: feature.seq,
+		     angle: rot.coordToAngle (feature.seq, (feature.start + feature.end) / 2),
+		     text: track.displayedName (feature.seq),
+		     textRadius: nameRadius
+		   }
+	})
+	var textData = this.showAxisLabels(rot.scale) ? labels.concat(seqNames) : seqNames
+
+        this.d3data(rot,textData).append("g")
             .attr("transform", featureTransform)
             .append("text")
             .attr("class", "rotundaLabel")

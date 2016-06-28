@@ -11,6 +11,8 @@ return declare (Track,
     constructor: function(config) {
     },
 
+    radius: 0,
+
     draw: function (rot, minRadius, maxRadius) {
 
         var featureColor = this.featureColor (rot)
