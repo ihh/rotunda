@@ -147,6 +147,7 @@ require(
             gcTrack = new HistogramTrack ({ id: "gc_hist",
 					    label: "GC content",
 					    radius: 30,
+					    units: "%",
 					    features: gcFeatures })
 
             console.log (gcFeatures.length + " GC-content regions")

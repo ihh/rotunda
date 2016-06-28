@@ -117,3 +117,15 @@ div.rotunda-track-label:hover {
     border-bottom: 3px solid #999;
     margin-bottom: -3px;
 }
+
+.rotunda-tooltip {
+    position: absolute;
+    z-index: 10;
+    visibility: hidden;
+    background-color: white;
+    border-style: solid;
+    border-color: black;
+    border-width: 1px;
+    padding: 1px;
+    opacity: .8;
+}

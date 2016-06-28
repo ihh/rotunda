@@ -15,7 +15,7 @@ return declare (Track,
 
     draw: function (rot, minRadius, maxRadius) {
 
-        var featureColor = this.featureColor (rot)
+        var featureColor = this.featureColorFunc()
 
         var innerRadius = rot.innerRadius()
         var featureChord = d3.svg.chord()

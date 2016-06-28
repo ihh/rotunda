@@ -6,7 +6,6 @@ define([
     'dojo/aspect',
     'd3/d3',
     'Rotunda/util',
-    'Rotunda/colors',
     'Rotunda/View/Animation/Zoomer',
     'Rotunda/View/Animation/Slider'
 ],
@@ -18,7 +17,6 @@ define([
            aspect,
            libd3,
            util,
-           colors,
            Zoomer,
            Slider
        ) {
@@ -74,8 +72,6 @@ return declare( null, {
 	// initialize view coords
         this.scale = this.minScale
         this.rotate = 0
-
-        this.colors = colors
 
         // build view
         dojo.addClass( document.body, this.config.theme || "tundra")  //< tundra dijit theme
@@ -248,7 +244,8 @@ return declare( null, {
     createTrackList: function (parent) {
         var rot = this
         var trackList = dojo.create( 'div', { id: this.id+'-tracklist',
-					      class: 'rotunda-tracklist' },
+					      class: 'rotunda-tracklist',
+					      title: 'Drag to reorder tracks' },
 	                             parent )
         var trackListDnd =
             new dndSource (
@@ -359,6 +356,7 @@ return declare( null, {
     },
 
     redraw: function() {
+	d3.selectAll('.rotunda-tooltip').remove()
         this.svg.remove()
         this.draw()
     },

@@ -13,9 +13,12 @@ return declare (Track,
     constructor: function(config) {
     },
 
+    units: "",
+
     draw: function (rot, minRadius, maxRadius) {
 
-        var featureColor = this.featureColor (rot)
+	var track = this
+        var featureColor = this.featureColorFunc()
 
         var values = this.features.map (function (feature) { return feature.value })
         var minValue = this.hasOwnProperty('minValue') ? this.minValue : Math.min.apply (this, values)
@@ -34,10 +37,17 @@ return declare (Track,
                 return rot.coordToAngle (feature.seq, feature.end)
             })
 
-        this.d3data(rot).append("path")
+        var path = this.d3data(rot).append("path")
             .attr("d", featureArc)
             .attr("fill", featureColor)
             .attr("stroke", featureColor)
+
+	var featureLabel = function (feature) {
+	    return feature.seq + " (" + feature.start + ".." + feature.end + "): " + feature.value + track.units
+	}
+
+	this.addMouseover (path,
+			   { featureLabel: featureLabel })
     }
 })
 

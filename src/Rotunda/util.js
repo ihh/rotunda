@@ -1,9 +1,11 @@
 define([
-           'dojo/_base/lang'
+    'dojo/_base/lang',
+    'Rotunda/colors'
        ],
 
        function(
-           lang
+           lang,
+	   colors
        ) {
 
            var Util
@@ -40,7 +42,22 @@ define([
 
                rgbToHex: function (r, g, b) {
                    return "#" + Util.componentToHex(r) + Util.componentToHex(g) + Util.componentToHex(b)
-               }
+               },
+
+	       colorToRgb: function (color) {
+		   if (color in colors) {
+		       var rgb = colors[color]
+		       if( Object.prototype.toString.call(rgb) === '[object Array]' ) {
+			   if (rgb.length == 3) {
+			       return Util.rgbToHex.apply (this, rgb)
+			   }
+			   return 'black'
+		       }
+		       return rgb
+		   }
+		   return color
+	       }
+
            }
 
            return Util

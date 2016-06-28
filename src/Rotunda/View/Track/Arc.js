@@ -13,7 +13,8 @@ return declare (Track,
 
     draw: function (rot, minRadius, maxRadius, minAngle, maxAngle) {
         
-        var featureColor = this.featureColor (rot)
+	var track = this
+        var featureColor = this.featureColorFunc()
         
         var featureArc = d3.svg.arc()
             .innerRadius(minRadius)
@@ -24,10 +25,12 @@ return declare (Track,
                 return rot.coordToAngle (feature.seq, feature.end)
             })
 
-        this.d3data(rot).append("path")
+        var path = this.d3data(rot).append("path")
             .attr("d", featureArc)
             .attr("fill", featureColor)
             .attr("stroke", featureColor)
+
+	this.addMouseover (path)
     }
 })
 
