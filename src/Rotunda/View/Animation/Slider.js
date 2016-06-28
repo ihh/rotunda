@@ -1,20 +1,20 @@
-define(['JBrowse/View/Animation'],
-      function(Animation) {
+define(['dojo/_base/declare',
+        'Rotunda/View/Animation'],
+       function(declare,
+                Animation) {
 
 /**
  * @class
  */
-function Slider(radians, rotunda, callback, time) {
-    Animation.call(this, rotunda, callback, time)
-    this.rotunda = rotunda
-    this.degrees = (radians - rotunda.rotate) * 180 / Math.PI
-}
+return declare (Animation,
+{
+    constructor: function(rotunda, callback, time, radians) {
+        this.rotunda = rotunda
+        this.degrees = (radians - rotunda.rotate) * 180 / Math.PI
+    },
 
-Slider.prototype = new Animation();
-
-Slider.prototype.step = function(pos) {
-    this.rotunda.gTransformRotate (this.degrees * pos)
-};
-
-return Slider;
-});
+    step: function(pos) {
+        this.rotunda.gTransformRotate (this.degrees * pos)
+    }
+})
+       });

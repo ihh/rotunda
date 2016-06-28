@@ -1,40 +1,41 @@
-define(['Rotunda/View/Track'],
-      function(Track) {
+define(['dojo/_base/declare',
+        'Rotunda/View/Track'],
+       function(declare,
+                Track) {
 
 /**
  * @class
  */
-function Link(config) {
-    Track.call(this, config)
-}
+return declare (Track,
+{
+    constructor: function(config) {
+    },
 
-Link.prototype = new Track()
+    draw: function (rot, minRadius, maxRadius) {
 
-Link.prototype.draw = function (rot, minRadius, maxRadius) {
+        var featureColor = this.featureColor (rot)
 
-    var featureColor = this.featureColor (rot)
+        var innerRadius = rot.innerRadius()
+        var featureChord = d3.svg.chord()
+            .source (function (link) {
+                var s = { startAngle: rot.coordToAngle (link.seq, link.start),
+                          endAngle: rot.coordToAngle (link.seq, link.end),
+                          radius: innerRadius }
+                return s
+            })
+            .target (function (link) {
+                var t = { startAngle: rot.coordToAngle (link.otherSeq, link.otherStart),
+                          endAngle: rot.coordToAngle (link.otherSeq, link.otherEnd),
+                          radius: innerRadius }
+                return t
+            })
 
-    var innerRadius = rot.innerRadius()
-    var featureChord = d3.svg.chord()
-        .source (function (link) {
-            var s = { startAngle: rot.coordToAngle (link.seq, link.start),
-                      endAngle: rot.coordToAngle (link.seq, link.end),
-                      radius: innerRadius }
-            return s
-        })
-        .target (function (link) {
-            var t = { startAngle: rot.coordToAngle (link.otherSeq, link.otherStart),
-                      endAngle: rot.coordToAngle (link.otherSeq, link.otherEnd),
-                      radius: innerRadius }
-            return t
-        })
+        this.d3data(rot).append("path")
+            .attr("d", featureChord)
+            .attr("fill", featureColor)
+            .attr("stroke", featureColor)
 
-    this.d3data(rot).append("path")
-        .attr("d", featureChord)
-        .attr("fill", featureColor)
-        .attr("stroke", featureColor)
+    }
 
-}
-
-return Link
+})
 });

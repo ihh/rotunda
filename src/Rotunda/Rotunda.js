@@ -2,6 +2,7 @@ define([
     'dojo/_base/declare',
     'dojo/_base/lang',
     'dojo/query',
+    'dojo/dnd/Source',
     'd3/d3',
     'Rotunda/util',
     'Rotunda/colors',
@@ -12,6 +13,7 @@ define([
            declare,
            lang,
            query,
+           dndSource,
            libd3,
            util,
            colors,
@@ -68,20 +70,32 @@ return declare( null, {
 	// initialize view coords
         this.scale = this.minScale
         this.rotate = 0
-        
+
         this.colors = colors
 
         // build view
-	d3.select("#"+this.id)
-	    .attr("class", "rotunda_container")
+        // slightly funky mixture of dojo/d3 here...
+        // use dojo to create navbox and track list
+        var dojoContainer = query("#"+this.id)
+        this.container = dojoContainer[0]
 
-        this.createNavBox (query("#"+this.id)[0])
-
-        this.svg_wrapper = d3.select("#"+this.id)
+        this.container.setAttribute("class", "rotunda_container")
+        this.container.setAttribute("style", "width: " + this.width + "px")
+      
+        this.createNavBox (this.container)
+        
+        this.viewContainer = dojo.create( 'div', { id: this.id+'_view',
+					           class: 'rotunda_view' },
+				          this.container );
+        
+        // use d3 to create the SVG
+        var d3view = d3.select("#"+this.id+"_view")  // d3 selection
+        this.svg_wrapper = d3view
 	    .append("div")
+            .attr("id", this.id+"_svg_wrapper")
             .attr("class", "rotunda_svg_wrapper")
             .attr("style", "height: " + this.height + "px")
-
+        
         this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
                 rot.dragDeltaRadians = 0
@@ -102,7 +116,11 @@ return declare( null, {
                 rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
                 rot.dragging = false
             })
+
+        // create track list
+//        this.createTrackList (this.viewContainer)
         
+        // draw
         this.draw()
     },
 
@@ -123,7 +141,7 @@ return declare( null, {
     // createNavBox mostly lifted from JBrowse Browser.js
     createNavBox: function( parent ) {
         var align = 'left';
-        var navbox = dojo.create( 'div', { id: parent.id+'_navbox',
+        var navbox = dojo.create( 'div', { id: this.id+'_navbox',
 					   class: 'rotunda_navbox',
 					   style: { 'text-align': align } },
 				  parent );
@@ -220,16 +238,24 @@ return declare( null, {
         this.rotate = newRads
         this.redraw()
     },
+
+    createTrackList: function (parent) {
+        var trackList = dojo.create( 'div', { id: this.id+'_tracklist',
+					      class: 'rotunda_tracklist' },
+	                             parent )
+        var trackListDnd = new dndSource (trackList)
+        trackListDnd.insertNodes (false, ['a','b','c'])
+    },
     
     slide: function(distance) {
         var rotunda = this
         if (this.animation) return;
         var deltaRads = 2 * distance * Math.atan (.5 * this.width / (this.radius * this.scale))
         var newRads = this.rotate + deltaRads
-        new Slider (newRads,
-                    rotunda,
+        new Slider (rotunda,
                     function() { rotunda.rotateTo(newRads) },
-                    700)
+                    700,
+                    newRads)
     },
 
     zoomIn: function(e, zoomLoc, steps) {
@@ -255,20 +281,20 @@ return declare( null, {
     zoomTo: function (newScale) {
         var rot = this
 	if (newScale != rot.scale)
-            new Zoomer (newScale,
-			rot,
+            new Zoomer (rot,
 			function() {
                             rot.scale = newScale
 			    rot.calculateTrackSizes()
                         rot.redraw()
 			},
-			700)
+			700,
+                        newScale)
     },
 
     gTransformRotate: function (degrees) {
         this.g.attr("transform",
                     "translate(" + this.width/2 + "," + this.radius*this.scale + ") rotate(" + degrees + ")")
-        d3.selectAll(".rotundaLabel")
+        this.labels
             .attr("transform", "rotate(" + (-degrees) + ")")
     },
 
@@ -281,7 +307,7 @@ return declare( null, {
 	}
         this.g.attr("transform",
                     "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / factor + "," + (this.radius * this.scale + yShift) + ")")
-        d3.selectAll(".rotundaLabel")
+        this.labels
             .attr("transform", "scale(" + (1/xfactor) + "," + (1/yfactor) + ")")
     },
 
@@ -329,6 +355,8 @@ return declare( null, {
         this.tracks.forEach (function (track, trackNum) {
             rot.drawTrack (track, trackNum, amin, amax)
         })
+
+        this.labels = d3.selectAll(".rotundaLabel")
     },
 
     drawTrack: function (track, trackNum, minAngle, maxAngle) {

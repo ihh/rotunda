@@ -11,11 +11,24 @@
     border-color: #f8f8f8;
 }
 
+.rotunda_view {
+    position: relative;
+}
+
+.rotunda_tracklist {
+    margin-left: 1px;
+    z-index: 1;
+    position: absolute;
+    top: 0;
+}
+
 .rotunda_svg_wrapper {
     border-style: solid;
     border-width: 0px 1px 1px 1px;
     border-color: #f8f8f8;
     overflow-y: scroll;
+    position: absolute;
+    top: 0;
 }
 
 .rotunda_svg {

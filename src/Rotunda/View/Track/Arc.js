@@ -1,33 +1,34 @@
-define(['Rotunda/View/Track'],
-      function(Track) {
+define(['dojo/_base/declare',
+        'Rotunda/View/Track'],
+       function(declare,
+                Track) {
 
 /**
  * @class
  */
-function Arc(config) {
-    Track.call(this, config)
-}
+return declare (Track,
+{
+    constructor: function(config) {
+    },
 
-Arc.prototype = new Track()
+    draw: function (rot, minRadius, maxRadius, minAngle, maxAngle) {
+        
+        var featureColor = this.featureColor (rot)
+        
+        var featureArc = d3.svg.arc()
+            .innerRadius(minRadius)
+            .outerRadius(maxRadius)
+            .startAngle (function (feature) {
+                return rot.coordToAngle (feature.seq, feature.start)
+            }).endAngle (function (feature) {
+                return rot.coordToAngle (feature.seq, feature.end)
+            })
 
-Arc.prototype.draw = function (rot, minRadius, maxRadius, minAngle, maxAngle) {
-    
-    var featureColor = this.featureColor (rot)
-    
-    var featureArc = d3.svg.arc()
-        .innerRadius(minRadius)
-        .outerRadius(maxRadius)
-        .startAngle (function (feature) {
-            return rot.coordToAngle (feature.seq, feature.start)
-        }).endAngle (function (feature) {
-            return rot.coordToAngle (feature.seq, feature.end)
-        })
+        this.d3data(rot).append("path")
+            .attr("d", featureArc)
+            .attr("fill", featureColor)
+            .attr("stroke", featureColor)
+    }
+})
 
-    this.d3data(rot).append("path")
-        .attr("d", featureArc)
-        .attr("fill", featureColor)
-        .attr("stroke", featureColor)
-}
-
-return Arc
 });
