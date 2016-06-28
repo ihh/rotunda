@@ -1,37 +1,10 @@
-.rotunda_container {
-    display: inline-block;
-    border-color: #f8f8f8;
-}
-
-.rotunda_navbox {
-    background-color: #f8f8f8;
-    border-style: solid;
-    border-width: 1px 1px 0px 1px;
-    padding-top: 1px;
-    border-color: #f8f8f8;
-}
-
-.rotunda_view {
-    position: relative;
-}
-
-.rotunda_tracklist {
-    margin-left: 1px;
-    z-index: 1;
-    position: absolute;
-    top: 0;
-}
-
-.rotunda_svg_wrapper {
-    border-style: solid;
-    border-width: 0px 1px 1px 1px;
-    border-color: #f8f8f8;
-    overflow-y: scroll;
-    position: absolute;
-    top: 0;
-}
-
-.rotunda_svg {
+html, body {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    font-size: 12px;
+    font-family: Univers,Trebuchet MS,Helvetica,Arial,sans-serif;
 }
 
 .icon.nav {

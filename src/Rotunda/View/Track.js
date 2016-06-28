@@ -13,6 +13,10 @@ return declare (null,
         lang.mixin (this, config)
     },
 
+    trackListID: function (rot) {
+        return rot.id + '-track-label-' + this.id
+    },
+    
     d3data: function (rot) {
         return rot.g.selectAll("#track_"+this.id)
             .data(this.features)

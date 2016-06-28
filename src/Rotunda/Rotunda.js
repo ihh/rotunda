@@ -3,6 +3,7 @@ define([
     'dojo/_base/lang',
     'dojo/query',
     'dojo/dnd/Source',
+    'dojo/aspect',
     'd3/d3',
     'Rotunda/util',
     'Rotunda/colors',
@@ -14,6 +15,7 @@ define([
            lang,
            query,
            dndSource,
+           aspect,
            libd3,
            util,
            colors,
@@ -74,26 +76,28 @@ return declare( null, {
         this.colors = colors
 
         // build view
+        dojo.addClass( document.body, this.config.theme || "tundra")  //< tundra dijit theme
+
         // slightly funky mixture of dojo/d3 here...
         // use dojo to create navbox and track list
         var dojoContainer = query("#"+this.id)
         this.container = dojoContainer[0]
 
-        this.container.setAttribute("class", "rotunda_container")
+        this.container.setAttribute("class", "rotunda-container")
         this.container.setAttribute("style", "width: " + this.width + "px")
       
         this.createNavBox (this.container)
         
-        this.viewContainer = dojo.create( 'div', { id: this.id+'_view',
-					           class: 'rotunda_view' },
+        this.viewContainer = dojo.create( 'div', { id: this.id+'-view',
+					           class: 'rotunda-view' },
 				          this.container );
         
         // use d3 to create the SVG
-        var d3view = d3.select("#"+this.id+"_view")  // d3 selection
+        var d3view = d3.select("#"+this.id+"-view")  // d3 selection
         this.svg_wrapper = d3view
 	    .append("div")
-            .attr("id", this.id+"_svg_wrapper")
-            .attr("class", "rotunda_svg_wrapper")
+            .attr("id", this.id+"-svg-wrapper")
+            .attr("class", "rotunda-svg-wrapper")
             .attr("style", "height: " + this.height + "px")
         
         this.dragBehavior = d3.behavior.drag()
@@ -118,7 +122,7 @@ return declare( null, {
             })
 
         // create track list
-//        this.createTrackList (this.viewContainer)
+        this.createTrackList (this.viewContainer)
         
         // draw
         this.draw()
@@ -141,8 +145,8 @@ return declare( null, {
     // createNavBox mostly lifted from JBrowse Browser.js
     createNavBox: function( parent ) {
         var align = 'left';
-        var navbox = dojo.create( 'div', { id: this.id+'_navbox',
-					   class: 'rotunda_navbox',
+        var navbox = dojo.create( 'div', { id: this.id+'-navbox',
+					   class: 'rotunda-navbox',
 					   style: { 'text-align': align } },
 				  parent );
 
@@ -240,11 +244,44 @@ return declare( null, {
     },
 
     createTrackList: function (parent) {
-        var trackList = dojo.create( 'div', { id: this.id+'_tracklist',
-					      class: 'rotunda_tracklist' },
+        var rot = this
+        var trackList = dojo.create( 'div', { id: this.id+'-tracklist',
+					      class: 'rotunda-tracklist' },
 	                             parent )
-        var trackListDnd = new dndSource (trackList)
-        trackListDnd.insertNodes (false, ['a','b','c'])
+        var trackListDnd =
+            new dndSource (
+                trackList,
+                {
+                    accept: ["track"],
+                    creator: dojo.hitch( this, function( track, hint ) {
+                        return {
+                            data: track,
+                            type: ["track"],
+                            node: dojo.create('div', { innerHTML: track.label,
+                                                       id: track.trackListID(this),
+                                                       className: 'rotunda-track-label' + (hint == 'avatar' ? ' dragging' : '') })
+                        };
+                    }),
+                })
+
+        aspect.after (trackListDnd,
+                      'onDrop',
+                      dojo.hitch (this, function (source, nodes, copy, target) {
+                          var idToTrack = {}
+                          rot.tracks.forEach (function (track) { idToTrack[track.trackListID(rot)] = track })
+                          var newTrackOrder = []
+                          for (var i = 0; i < trackList.children.length; ++i)
+                              newTrackOrder.push (idToTrack[trackList.children[i].id])
+                          console.log (newTrackOrder)
+                          rot.tracks = newTrackOrder
+			  rot.calculateTrackSizes()
+                          rot.redraw()
+                      }))
+
+        trackListDnd.insertNodes (false, this.tracks)
+
+        this.trackList = trackList
+        this.trackListDnd = trackListDnd
     },
     
     slide: function(distance) {
@@ -285,7 +322,7 @@ return declare( null, {
 			function() {
                             rot.scale = newScale
 			    rot.calculateTrackSizes()
-                        rot.redraw()
+                            rot.redraw()
 			},
 			700,
                         newScale)
@@ -330,8 +367,8 @@ return declare( null, {
         
         this.svg = this.svg_wrapper
             .append("svg")
-            .attr("id", this.id+"_svg")
-            .attr("class", "rotunda_svg")
+            .attr("id", this.id+"-svg")
+            .attr("class", "rotunda-svg")
             .attr("width", this.width)
             .attr("height", Math.max (this.height, this.totalTrackRadius))
 
@@ -339,7 +376,7 @@ return declare( null, {
 
         this.g = this.svg
             .append("g")
-            .attr("id", this.id+"_g")
+            .attr("id", this.id+"-g")
             .attr("transform", "translate(" + this.width/2 + "," + this.radius * this.scale + ")")
 
         var amin, amax
@@ -351,10 +388,11 @@ return declare( null, {
             amin = -this.rotate - aw/2
             amax = -this.rotate + aw/2
         }
-        
-        this.tracks.forEach (function (track, trackNum) {
-            rot.drawTrack (track, trackNum, amin, amax)
-        })
+
+        // draw tracks in reverse order, so higher-ranked link tracks appear on top
+        for (var trackNum = this.tracks.length - 1; trackNum >= 0; --trackNum) {
+            rot.drawTrack (this.tracks[trackNum], trackNum, amin, amax)
+        }
 
         this.labels = d3.selectAll(".rotundaLabel")
     },
