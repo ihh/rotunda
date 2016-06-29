@@ -1,8 +1,10 @@
 define(["dojo/_base/declare",
         "dojo/_base/lang",
+        "dojo/dom-geometry",
 	"Rotunda/util"],
        function(declare,
                 lang,
+                domGeom,
 		util) {
 /**
  * @class
@@ -84,7 +86,9 @@ return declare (null,
 	    tooltip.style("visibility", "visible")
 		.html (featureLabel (feature))
 	}).on("mousemove", function(feature) {
-	    tooltip.style("top", (event.pageY-10)+"px").style("left",(event.pageX+10)+"px")
+            var x = d3.event.clientX
+            var y = d3.event.clientY
+	    tooltip.style("top", (y-10)+"px").style("left",(x+10)+"px")
 	}).on("mouseout", function(feature) {
 	    tooltip.style("visibility", "hidden")
 	    if (highlightColor) {
