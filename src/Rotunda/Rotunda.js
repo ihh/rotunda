@@ -127,7 +127,9 @@ return declare( null, {
         var maxTrackScale = this.config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
 
 	var verticalCurvatureDropThreshold = .9
-	this.nonlinearScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
+	var curvatureScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
+        var trackRadiusScaleThreshold = Math.pow (4, Math.floor (Math.log (maxTrackScale) / Math.log(4)))
+	this.nonlinearScaleThreshold = Math.min (curvatureScaleThreshold, trackRadiusScaleThreshold)
         this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.nonlinearScaleThreshold) / Math.log(this.maxScale/this.nonlinearScaleThreshold)) : 1
 
 	// initialize view coords
@@ -149,6 +151,7 @@ return declare( null, {
     resize: function() {
 	delete this.resizeTimeout
 	this.width = this.svg_wrapper[0][0].clientWidth
+	this.height = this.svg_wrapper[0][0].clientHeight
 	this.clear()
 	this.initScales()
     },
