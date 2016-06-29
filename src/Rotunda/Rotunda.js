@@ -556,7 +556,7 @@ return declare( null, {
     angularViewRange: function (radius) {
 	radius = radius || this.innerRadius()
         var amin, amax
-        if (this.width >= this.scale * radius * 2) {
+        if (this.width >= radius * 2) {
             amin = 0
             amax = 2*Math.PI
         } else {
