@@ -19,10 +19,13 @@
     position: relative;
 }
 
-.rotunda-tracklist {
+.rotunda-tracklist-container {
     margin-left: 1px;
     position: absolute;
     top: 0;
+}
+
+.rotunda-tracklist {
 }
 
 .rotunda-svg-wrapper {

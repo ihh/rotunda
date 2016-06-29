@@ -15,6 +15,11 @@ return declare (null,
         lang.mixin (this, config)
     },
 
+    isLinkTrack: false,
+    isInternal: function() {
+        return 'radius' in this && this.radius == 0 && this.isLinkTrack
+    },
+
     trackListID: function (rot) {
         return rot.id + '-track-label-' + this.id
     },

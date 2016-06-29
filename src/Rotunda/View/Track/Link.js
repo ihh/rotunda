@@ -12,7 +12,8 @@ return declare (Track,
     },
 
     radius: 0,
-
+    isLinkTrack: true,
+    
     featureLabelFunc: function() {
 	var track = this
 	return function (feature) {

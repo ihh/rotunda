@@ -31,7 +31,8 @@ return declare( null, {
 	this.config = config
         this.id = config.id || "rotunda"
 
-        this.tracks = config.tracks
+        this.tracks = config.tracks.filter (function (track) { return !track.isLinkTrack })
+        this.links = config.tracks.filter (function (track) { return track.isLinkTrack })
 
 	// find dimensions
 	this.defaultTrackRadius = config.defaultTrackRadius || 10
@@ -295,19 +296,47 @@ return declare( null, {
 
     createTrackList: function (parent) {
         var rot = this
+
+        var trackListContainer = dojo.create( 'div', { id: this.id+'-tracklist-container',
+					               class: 'rotunda-tracklist-container',
+					               title: 'Drag tracks and links to reorder' },
+	                                      parent )
+
+        dojo.create( 'br', { }, trackListContainer)
+//        dojo.create( 'span', { innerHTML: '<i>Tracks</i>' }, trackListContainer)
+        
         var trackList = dojo.create( 'div', { id: this.id+'-tracklist',
 					      class: 'rotunda-tracklist',
-					      title: 'Drag to reorder tracks' },
-	                             parent )
+					      title: 'Drag tracks to reorder' },
+	                             trackListContainer )
+
+        dojo.create( 'br', { }, trackListContainer)
+//        dojo.create( 'span', { innerHTML: '<i>Links</i>' }, trackListContainer)
+
+        var linkList = dojo.create( 'div', { id: this.id+'-linklist',
+					     class: 'rotunda-tracklist',
+					     title: 'Drag links to reorder' },
+	                            trackListContainer )
+
+        this.trackList = trackList
+        this.linkList = linkList
+
+        this.trackListDnd = this.createDnd ('tracks', trackList)
+        this.linkListDnd = this.createDnd ('links', linkList)
+    },
+
+    createDnd: function (tracksVar, container) {
+        var rot = this
+        var tracks = rot[tracksVar]
         var trackListDnd =
             new dndSource (
-                trackList,
+                container,
                 {
-                    accept: ["track"],
+                    accept: [tracksVar],
                     creator: dojo.hitch( this, function( track, hint ) {
                         return {
                             data: track,
-                            type: ["track"],
+                            type: [tracksVar],
                             node: dojo.create('div', { innerHTML: track.label,
                                                        id: track.trackListID(this),
                                                        className: 'rotunda-track-label' + (hint == 'avatar' ? ' dragging' : '') })
@@ -319,19 +348,17 @@ return declare( null, {
                       'onDrop',
                       dojo.hitch (this, function (source, nodes, copy, target) {
                           var idToTrack = {}
-                          rot.tracks.forEach (function (track) { idToTrack[track.trackListID(rot)] = track })
+                          tracks.forEach (function (track) { idToTrack[track.trackListID(rot)] = track })
                           var newTrackOrder = []
-                          for (var i = 0; i < trackList.children.length; ++i)
-                              newTrackOrder.push (idToTrack[trackList.children[i].id])
-                          rot.tracks = newTrackOrder
+                          for (var i = 0; i < container.children.length; ++i)
+                              newTrackOrder.push (idToTrack[container.children[i].id])
+                          rot[tracksVar] = newTrackOrder
 			  rot.calculateTrackSizes()
                           rot.redraw()
                       }))
 
-        trackListDnd.insertNodes (false, this.tracks)
-
-        this.trackList = trackList
-        this.trackListDnd = trackListDnd
+        trackListDnd.insertNodes (false, tracks)
+        return trackListDnd
     },
     
     slide: function(distance) {
@@ -434,13 +461,14 @@ return declare( null, {
             .attr("id", this.id+"-g")
             .attr("transform", "translate(" + this.width/2 + "," + this.outerRadius() + ")")
 
-        // draw tracks in reverse order, so higher-ranked link tracks appear on top
+        // draw tracks in reverse order, so higher-ranked tracks appear on top
         for (var trackNum = this.tracks.length - 1; trackNum >= 0; --trackNum) {
 	    var ar = this.angularViewRange (this.minRadius (trackNum))
 	    var amin = ar[0], amax = ar[1]
             this.drawTrack (this.tracks[trackNum], trackNum, amin, amax)
         }
-
+        this.drawLinks()
+        
         this.labels = d3.selectAll(".rotundaLabel")
     },
 
@@ -449,6 +477,17 @@ return declare( null, {
         var maxRadius = this.maxRadius (trackNum)
         var minRadius = this.minRadius (trackNum)
 	track.draw (this, minRadius, maxRadius, minAngle, maxAngle)
+    },
+
+    drawLinks: function() {
+        var innerRadius = this.innerRadius(), outerRadius = this.outerRadius()
+        if (this.height > outerRadius - innerRadius) {
+            var lr = this.angularViewRange (this.innerRadius())
+            var lmin = lr[0], lmax = lr[1]
+            // draw link tracks in reverse order, so higher-ranked tracks appear on top
+            for (var i = this.links.length - 1; i >= 0; --i)
+                this.links[i].draw (this, 0, innerRadius, lmin, lmax)
+        }
     },
 
     pixelsPerBaseAtEdge: function (scale) {

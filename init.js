@@ -131,10 +131,10 @@ require(
 		
 
 	    var segDup100kb = segDup.filter (segDupFilter (1e5, 2e5))
-            console.log (segDup100kb.length + " segmental duplications of size >= 100kb")
+            console.log (segDup100kb.length + " segmental duplications of size 100kb-200kb")
             
             segDupTrack100kb = new LinkTrack ({ id: "segdup100k",
-						label: "Segmental duplications over 100kb",
+						label: "Segmental duplications 100-200kb",
 						color: function() { return 'blue' },
 						highlightColor: function() { return 'red' },
 						features: segDup100kb })
@@ -143,7 +143,7 @@ require(
             console.log (segDup200kb.length + " segmental duplications of size >= 200kb")
 
             segDupTrack200kb = new LinkTrack ({ id: "segdup200kb",
-					      label: "Segmental duplications over 200kb",
+					      label: "Segmental duplications >200kb",
 					      color: function() { return 'cyan' },
 					      highlightColor: function() { return 'red' },
 					      features: segDup200kb })
