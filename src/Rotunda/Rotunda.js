@@ -37,12 +37,9 @@ return declare( null, {
 	this.defaultTrackRadius = config.defaultTrackRadius || 10
 	this.minInnerRadius = config.minInnerRadius || 100
 
-	this.calculateTrackSizes(1,1)
-        this.radius = Math.max (config.radius || 300,
-                                this.totalTrackRadius + this.minInnerRadius)
-
-        this.width = config.width || this.radius * 2
-        this.height = config.height || this.width
+        var ww = window.innerWidth, wh = window.innerHeight - this.navbarHeight
+        this.width = config.width || ww
+        this.height = config.height || wh
 
 	// set up angular coordinate system
         this.refSeqLen = config.refSeqLen || [360]
@@ -84,9 +81,9 @@ return declare( null, {
 	    .append("div")
             .attr("id", this.id+"-svg-wrapper")
             .attr("class", "rotunda-svg-wrapper")
-            .attr("style", "height: " + this.height + "px")
 
-	addResizeListener (this.svg_wrapper[0][0], dojo.hitch (this, this.resizeCallback))
+	addResizeListener (this.svg_wrapper[0][0], dojo.hitch (this, this.manualResizeCallback))
+        addEventListener ("resize", dojo.hitch (this, this.windowResizeCallback))
         
         this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
@@ -120,6 +117,12 @@ return declare( null, {
 
     initScales: function() {
         this.container.setAttribute("style", "width: " + this.width + "px")
+        this.svg_wrapper.attr("style", "height: " + this.height + "px")
+
+        var ww = window.innerWidth, wh = window.innerHeight - this.navbarHeight
+	this.calculateTrackSizes(1,1)
+        this.radius = Math.max (this.config.radius || Math.min(ww/2,wh/2),
+                                this.totalTrackRadius + this.minInnerRadius)
 
 	// minBasesPerView = width / (pixelsPerBase * scale)
  	var minBasesPerView = 1e6
@@ -141,16 +144,19 @@ return declare( null, {
 	    this.scale = this.minScale
         
         // draw
+        this.calculateTrackSizes()
         this.draw()
     },
 
-    resizeCallback: function() {
+    navbarHeight: 36,
+    
+    manualResizeCallback: function() {
 	if (this.resizeTimeout)
 	    clearTimeout (this.resizeTimeout)
-	this.resizeTimeout = setTimeout (dojo.hitch (this, this.resize), 200)
+	this.resizeTimeout = setTimeout (dojo.hitch (this, this.manualResize), 200)
     },
 
-    resize: function() {
+    manualResize: function() {
 	delete this.resizeTimeout
 	this.width = this.svg_wrapper[0][0].clientWidth
 	this.height = this.svg_wrapper[0][0].clientHeight
@@ -158,6 +164,20 @@ return declare( null, {
 	this.initScales()
     },
 
+    windowResizeCallback: function() {
+	if (this.resizeTimeout)
+	    clearTimeout (this.resizeTimeout)
+	this.resizeTimeout = setTimeout (dojo.hitch (this, this.windowResize), 200)
+    },
+
+    windowResize: function() {
+	delete this.resizeTimeout
+	this.width = window.innerWidth
+	this.height = window.innerHeight - this.navbarHeight
+	this.clear()
+	this.initScales()
+    },
+    
     xyAngle: function(x,y) {
         var dx = x - this.width/2
         var dy = y - this.outerRadius()
