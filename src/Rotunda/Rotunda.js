@@ -38,9 +38,9 @@ return declare( null, {
 	this.defaultTrackRadius = config.defaultTrackRadius || 10
 	this.minInnerRadius = config.minInnerRadius || 100
 
-        var ww = window.innerWidth, wh = window.innerHeight - this.navbarHeight
-        this.width = config.width || ww
-        this.height = config.height || wh
+        var dim = this.windowDim()
+        this.width = config.width || dim[0]
+        this.height = config.height || dim[1]
 
 	// set up angular coordinate system
         this.refSeqLen = config.refSeqLen || [360]
@@ -120,9 +120,9 @@ return declare( null, {
         this.container.setAttribute("style", "width: " + this.width + "px")
         this.svg_wrapper.attr("style", "height: " + this.height + "px")
 
-        var ww = window.innerWidth, wh = window.innerHeight - this.navbarHeight
+        var dim = this.windowDim()
 	this.calculateTrackSizes(1,1)
-        this.radius = Math.max (this.config.radius || Math.min(ww/2,wh/2),
+        this.radius = Math.max (this.config.radius || Math.min(dim[0]/2,dim[1]/2),
                                 this.totalTrackRadius + this.minInnerRadius)
 
 	// minBasesPerView = width / (pixelsPerBase * scale)
@@ -150,6 +150,12 @@ return declare( null, {
     },
 
     navbarHeight: 36,
+    xMargin: 24,  // prevent overflow
+    yMargin: 24,  // prevent overflow
+    windowDim: function() {
+        return [window.innerWidth - this.xMargin, window.innerHeight - this.navbarHeight - this.yMargin]
+    },
+
     
     manualResizeCallback: function() {
 	if (this.resizeTimeout)
@@ -173,8 +179,9 @@ return declare( null, {
 
     windowResize: function() {
 	delete this.resizeTimeout
-	this.width = window.innerWidth
-	this.height = window.innerHeight - this.navbarHeight
+        var dim = this.windowDim()
+	this.width = dim[0]
+	this.height = dim[1]
 	this.clear()
 	this.initScales()
     },
