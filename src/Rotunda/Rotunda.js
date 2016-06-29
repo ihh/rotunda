@@ -90,9 +90,11 @@ return declare( null, {
         
         this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
+                if (rot.animation) return;
                 rot.dragDeltaRadians = 0
             })
             .on("drag", function(d,i) {
+                if (rot.animation) return;
 		var x = d3.event.x
 		var y = d3.event.y + rot.svg_wrapper[0][0].scrollTop
                 if (!rot.dragging) {
