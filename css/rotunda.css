@@ -35,7 +35,6 @@
     overflow-y: scroll;
     position: absolute;
     top: 0;
-    resize: both;
 }
 
 .rotunda-svg {

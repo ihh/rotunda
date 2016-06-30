@@ -4,6 +4,7 @@ define([
     'dojo/query',
     'dojo/dnd/Source',
     'dojo/aspect',
+    'dojo/Deferred',
     'd3/d3',
     'Rotunda/util',
     'Rotunda/View/Animation/Zoomer',
@@ -16,6 +17,7 @@ define([
            query,
            dndSource,
            aspect,
+	   Deferred,
            libd3,
            util,
            Zoomer,
@@ -83,8 +85,8 @@ return declare( null, {
             .attr("id", this.id+"-svg-wrapper")
             .attr("class", "rotunda-svg-wrapper")
 
-	addResizeListener (this.svg_wrapper[0][0], dojo.hitch (this, this.manualResizeCallback))
-        addEventListener ("resize", dojo.hitch (this, this.windowResizeCallback))
+	if (config.resizable)
+	    this.svg_wrapper.attr("style", "resize:both;")
         
         this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
@@ -114,6 +116,11 @@ return declare( null, {
 
 	// initialize scales and draw
 	this.initScales()
+
+	// add resize handlers
+	if (config.resizable)
+	    addResizeListener (this.svg_wrapper[0][0], dojo.hitch (this, this.manualResizeCallback))
+        addEventListener ("resize", dojo.hitch (this, this.windowResizeCallback))
     },
 
     initScales: function() {
@@ -153,7 +160,9 @@ return declare( null, {
     xMargin: 24,  // prevent overflow
     yMargin: 24,  // prevent overflow
     windowDim: function() {
-        return [window.innerWidth - this.xMargin, window.innerHeight - this.navbarHeight - this.yMargin]
+	var w = window.innerWidth - this.xMargin
+	var h = window.innerHeight - this.navbarHeight - this.yMargin
+        return [w, Math.min(w,h)]
     },
 
     
@@ -166,7 +175,7 @@ return declare( null, {
     manualResize: function() {
 	delete this.resizeTimeout
 	this.width = this.svg_wrapper[0][0].clientWidth
-	this.height = this.svg_wrapper[0][0].clientHeight
+	this.height = Math.min (this.width, this.svg_wrapper[0][0].clientHeight)
 	this.clear()
 	this.initScales()
     },
@@ -419,15 +428,10 @@ return declare( null, {
             .attr("transform", "rotate(" + (-degrees) + ")")
     },
 
-    gTransformScale: function (factor, nonlinear, yShift) {
-	nonlinear = nonlinear || false
-	yShift = yShift || 0
-	var xfactor = factor, yfactor = factor
-	if (nonlinear) {
-	    yfactor = Math.pow (factor, this.trackRadiusScaleExponent)
-	}
+    gTransformScale: function (xfactor, yfactor) {
+	yfactor = yfactor || xfactor
         this.g.attr("transform",
-                    "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / factor + "," + (this.outerRadius() + yShift) + ")")
+                    "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / xfactor + "," + this.outerRadius() + ")")
         this.labels
             .attr("transform", "scale(" + (1/xfactor) + "," + (1/yfactor) + ")")
     },
@@ -453,7 +457,7 @@ return declare( null, {
     
     draw: function() {
         var rot = this
-        
+
         this.svg = this.svg_wrapper
             .append("svg")
             .attr("id", this.id+"-svg")
@@ -477,6 +481,13 @@ return declare( null, {
         this.drawLinks()
         
         this.labels = d3.selectAll(".rotundaLabel")
+
+	if (this.spritePromiseTimeout)
+	    clearTimeout (this.spritePromiseTimeout)
+	this.spritePromiseTimeout = setTimeout (function() {
+	    delete rot.spritePromiseTimeout
+	    rot.spritePromise = rot.promiseSprite()
+	}, 700)
     },
 
     drawTrack: function (track, trackNum, minAngle, maxAngle) {
@@ -495,6 +506,46 @@ return declare( null, {
             for (var i = this.links.length - 1; i >= 0; --i)
                 this.links[i].draw (this, 0, innerRadius, lmin, lmax)
         }
+    },
+
+    // This rather kludgy method returns a [promise yielding a] Canvas element
+    // onto which the view, without text labels, has been painted.
+    // The hope is that this will be useful for implementing animations
+    // that run smoother than SVG transforms on Firefox (o Moz, why u hate SVGs?).
+    // Specifically, we can 
+    // Other possibilites to deal with Firefox jerkiness:
+    //  - use open-source SVG rendering library such as canvg: https://github.com/gabelerner/canvg
+    //  - do everything in Canvas to begin with (but then mouseover element detection is hard, esp. Bezier curves)
+    promiseSprite: function() {
+	var rot = this
+
+	var img = new Image()
+	var ser = new XMLSerializer()
+	var svg = this.svg[0][0]
+
+	this.labels.attr('style','visibility:hidden;')
+	var xml = ser.serializeToString( svg )
+	this.labels.attr('style','')
+
+	var blob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'})
+
+	var DOMURL = window.URL || window.webkitURL || window
+	var url = DOMURL.createObjectURL(blob)
+
+	var can = document.createElement('canvas')
+	can.width = this.width
+	can.height = this.height
+	var ctx = can.getContext('2d')
+
+	var deferred = new Deferred()
+	img.onload = function () {
+	    ctx.drawImage(img, 0, 0)
+	    DOMURL.revokeObjectURL(url)
+	    deferred.resolve (can)
+	}
+	img.src = url
+
+	return deferred
     },
 
     pixelsPerBaseAtEdge: function (scale) {

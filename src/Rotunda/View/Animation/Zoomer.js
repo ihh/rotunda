@@ -23,7 +23,11 @@ return declare (Animation,
         var z2 = zoomFraction * zoomFraction
         var curScaleFactor = (z2 * this.deltaScale + this.minScale) / this.oldScale
         var nonlinear = this.minScale >= this.rotunda.nonlinearScaleThreshold
-        this.rotunda.gTransformScale (curScaleFactor, nonlinear)
+	var xfactor = curScaleFactor, yfactor = curScaleFactor
+	if (nonlinear) {
+	    yfactor = Math.pow (xfactor, this.rotunda.trackRadiusScaleExponent)
+	}
+        this.rotunda.gTransformScale (xfactor, yfactor)
     }
 })
 

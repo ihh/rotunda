@@ -28,10 +28,25 @@ return declare (null, {
     },
 
     animate: function() {
+	var animation = this
+
         if (this.finished) {
             this.stop();
             return;
         }
+
+// Commented out code uses d3.timer instead. Seems to be more jerky on Chrome&Firefox. Disable for now
+/*
+	d3.timer (function (elapsed) {
+	    animation.step (Math.min (1, elapsed / animation.time))
+            animation.frames++
+	    var complete = elapsed >= animation.time
+	    if (complete)
+		animation.stop()
+	    return complete
+	})
+	return
+*/
 
         // number of milliseconds between frames (e.g., 33ms at 30fps)
         var nextTimeout = 33;
