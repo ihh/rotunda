@@ -41,6 +41,9 @@
     cursor: move;
 }
 
+.rotunda-canvas {
+}
+
 div.rotunda-track-label {
     z-index: 20;
 

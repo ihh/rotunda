@@ -98,6 +98,8 @@ return declare( null, {
 		var x = d3.event.x
 		var y = d3.event.y + rot.svg_wrapper[0][0].scrollTop
                 if (!rot.dragging) {
+		    if (rot.hideLabelsDuringAnimation)
+			rot.hideLabels()
                     var xDragStart = x - d3.event.dx
                     var yDragStart = y - d3.event.dy
                     rot.dragInitRadians = rot.xyAngle (xDragStart, yDragStart)
@@ -107,9 +109,22 @@ return declare( null, {
                 rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
             })
             .on("dragend", function(d,i) {
+		if (rot.useCanvasForAnimations)
+		    rot.destroyAnimationCanvas()
                 rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
                 rot.dragging = false
             })
+
+	this.useCanvasForAnimations = config.useCanvasForAnimations
+	this.hideLabelsDuringAnimation = 'hideLabelsDuringAnimation' in config ? config.hideLabelsDuringAnimation : dojo.isFF
+
+	this.waitElems = dojo.filter( [ dojo.byId("moveLeft"), dojo.byId("moveRight"),
+					dojo.byId("zoomIn"), dojo.byId("zoomOut"),
+					dojo.byId("bigZoomIn"), dojo.byId("bigZoomOut"),
+					document.body, this.svg_wrapper[0][0], ],
+                                      function(e) { return e; }
+                                    )
+	this.prevCursors = []
 
         // create track list
         this.createTrackList (this.viewContainer)
@@ -162,7 +177,7 @@ return declare( null, {
     windowDim: function() {
 	var w = window.innerWidth - this.xMargin
 	var h = window.innerHeight - this.navbarHeight - this.yMargin
-        return [w, Math.min(w,h)]
+        return [w, h]
     },
 
     
@@ -421,19 +436,64 @@ return declare( null, {
                         newScale)
     },
 
+    showWait: function() {
+	var oldCursors = [];
+	for (var i = 0; i < this.waitElems.length; i++) {
+            oldCursors[i] = this.waitElems[i].style.cursor;
+            this.waitElems[i].style.cursor = "wait";
+	}
+	this.prevCursors.push(oldCursors);
+    },
+
+    showDone: function() {
+	var oldCursors = this.prevCursors.pop();
+	for (var i = 0; i < this.waitElems.length; i++) {
+            this.waitElems[i].style.cursor = oldCursors[i];
+	}
+    },
+
+    hideLabels: function() {
+	this.labels.attr ('style', 'visibility:hidden;')
+    },
+
     gTransformRotate: function (degrees) {
-        this.g.attr("transform",
-                    "translate(" + this.width/2 + "," + this.outerRadius() + ") rotate(" + degrees + ")")
-        this.labels
-            .attr("transform", "rotate(" + (-degrees) + ")")
+	var rot = this
+	if (this.useCanvasForAnimations) {
+	    rot.createAnimationCanvas()
+	    var context = rot.animationCanvas.getContext("2d")
+	    var r = rot.outerRadius()
+	    context.translate (rot.width/2, r)
+	    context.rotate (degrees * Math.PI / 180)
+	    context.translate (-rot.width/2, -r)
+	    context.drawImage (rot.spriteImage, 0, 0)
+
+	} else {
+            this.g.attr("transform",
+			"translate(" + this.width/2 + "," + this.outerRadius() + ") rotate(" + degrees + ")")
+	    if (!this.hideLabelsDuringAnimation)
+		this.labels
+		.attr("transform", "rotate(" + (-degrees) + ")")
+	}
     },
 
     gTransformScale: function (xfactor, yfactor) {
 	yfactor = yfactor || xfactor
-        this.g.attr("transform",
-                    "scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / xfactor + "," + this.outerRadius() + ")")
-        this.labels
-            .attr("transform", "scale(" + (1/xfactor) + "," + (1/yfactor) + ")")
+	var rot = this
+	if (this.useCanvasForAnimations) {
+	    rot.createAnimationCanvas()
+	    var context = rot.animationCanvas.getContext("2d")
+	    context.translate (rot.width/2, 0)
+	    context.scale (xfactor, yfactor)
+	    context.translate (-rot.width/2, 0)
+	    context.drawImage (rot.spriteImage, 0, 0)
+
+	} else {
+            this.g.attr("transform",
+			"scale(" + xfactor + "," + yfactor + ") translate(" + (this.width/2) / xfactor + "," + this.outerRadius() + ")")
+	    if (!this.hideLabelsDuringAnimation)
+		this.labels
+		.attr("transform", "scale(" + (1/xfactor) + "," + (1/yfactor) + ")")
+	}
     },
 
     drawCircle: function (radius, stroke) {
@@ -447,7 +507,9 @@ return declare( null, {
 
     clear: function() {
 	d3.selectAll('.rotunda-tooltip').remove()
-        this.svg.remove()
+	if (this.svg)
+            this.svg.remove()
+	delete this.svg
     },
 
     redraw: function() {
@@ -482,12 +544,8 @@ return declare( null, {
         
         this.labels = d3.selectAll(".rotundaLabel")
 
-	if (this.spritePromiseTimeout)
-	    clearTimeout (this.spritePromiseTimeout)
-	this.spritePromiseTimeout = setTimeout (function() {
-	    delete rot.spritePromiseTimeout
+	if (rot.useCanvasForAnimations)
 	    rot.spritePromise = rot.promiseSprite()
-	}, 700)
     },
 
     drawTrack: function (track, trackNum, minAngle, maxAngle) {
@@ -518,36 +576,58 @@ return declare( null, {
     //  - do everything in Canvas to begin with (but then mouseover element detection is hard, esp. Bezier curves)
     promiseSprite: function() {
 	var rot = this
-
-	var img = new Image()
-	var ser = new XMLSerializer()
-	var svg = this.svg[0][0]
-
-	this.labels.attr('style','visibility:hidden;')
-	var xml = ser.serializeToString( svg )
-	this.labels.attr('style','')
-
-	var blob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'})
-
-	var DOMURL = window.URL || window.webkitURL || window
-	var url = DOMURL.createObjectURL(blob)
-
-	var can = document.createElement('canvas')
-	can.width = this.width
-	can.height = this.height
-	var ctx = can.getContext('2d')
-
 	var deferred = new Deferred()
-	img.onload = function () {
-	    ctx.drawImage(img, 0, 0)
-	    DOMURL.revokeObjectURL(url)
-	    deferred.resolve (can)
-	}
-	img.src = url
+
+	setTimeout (function() {
+	    var img = new Image()
+	    var ser = new XMLSerializer()
+	    var svg = rot.svg[0][0]
+
+	    rot.labels.attr('style','display:none;')
+	    var xml = ser.serializeToString( svg )
+	    rot.labels.attr('style','')
+
+	    var blob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'})
+
+	    var DOMURL = window.URL || window.webkitURL || window
+	    var url = DOMURL.createObjectURL(blob)
+
+	    img.onload = function () {
+		rot.spriteImage = img
+
+		if (rot.spriteUrl)
+		    DOMURL.revokeObjectURL(rot.spriteUrl)
+		rot.spriteUrl = url
+
+		deferred.resolve (img)
+	    }
+	    img.src = url
+
+	}, 700)
 
 	return deferred
     },
 
+    createAnimationCanvas: function() {
+	this.destroyAnimationCanvas()
+	this.clear()
+        this.animationCanvas = dojo.create( 'canvas',
+					    { id: this.id+'-canvas',
+					      class: 'rotunda-canvas',
+					      width: this.width,
+					      height: this.height },
+				            query('#'+this.id+'-svg-wrapper')[0]);
+
+    },
+
+    destroyAnimationCanvas: function() {
+	if (this.animationCanvas) {
+	    this.animationCanvas.remove()
+	    delete this.animationCanvas
+	}
+    },
+
+    // various dimensions
     pixelsPerBaseAtEdge: function (scale) {
 	return this.radius * this.radsPerBase * (scale || this.scale || 1)
     },

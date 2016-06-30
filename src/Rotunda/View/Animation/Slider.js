@@ -15,6 +15,11 @@ return declare (Animation,
 
     step: function(pos) {
         this.rotunda.gTransformRotate (this.degrees * pos)
+    },
+
+    cleanup: function() {
+	if (this.rotunda.useCanvasForAnimations)
+	    this.rotunda.destroyAnimationCanvas()
     }
 })
        });

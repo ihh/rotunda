@@ -9,6 +9,7 @@ return declare (null, {
         //subject: what's being animated
         //callback: function to call at the end of the animation
         //time: time for the animation to run
+	var animation = this
 
         //don't want a zoom and a slide going on at the same time
         if ("animation" in subject) subject.animation.stop();
@@ -17,36 +18,32 @@ return declare (null, {
         this.subject = subject;
         this.callback = callback;
 
-        var myAnim = this;
-        this.animFunction = function() { myAnim.animate(); };
-        // number of milliseconds between frames (e.g., 33ms at 30fps)
-        this.animID = setTimeout(this.animFunction, 33);
+	var startAnimation = function() {
+            animation.animFunction = function() { animation.animate() }
+            // number of milliseconds between frames (e.g., 33ms at 30fps)
+            animation.animID = setTimeout(animation.animFunction, 33)
+            animation.frames = 0
+            subject.animation = animation
+	    subject.showWait()
+	}
 
-        this.frames = 0;
+	if (subject.hideLabelsDuringAnimation)
+	    rotunda.hideLabels()
 
-        subject.animation = this;
+	if (subject.useCanvasForAnimation)
+	    subject.spritePromise.then (startAnimation)
+	else
+	    startAnimation()
     },
 
     animate: function() {
 	var animation = this
 
         if (this.finished) {
-            this.stop();
-            return;
+            this.stop()
+	    animation.subject.showDone()
+            return
         }
-
-// Commented out code uses d3.timer instead. Seems to be more jerky on Chrome&Firefox. Disable for now
-/*
-	d3.timer (function (elapsed) {
-	    animation.step (Math.min (1, elapsed / animation.time))
-            animation.frames++
-	    var complete = elapsed >= animation.time
-	    if (complete)
-		animation.stop()
-	    return complete
-	})
-	return
-*/
 
         // number of milliseconds between frames (e.g., 33ms at 30fps)
         var nextTimeout = 33;
@@ -77,6 +74,9 @@ return declare (null, {
         clearTimeout(this.animID);
         delete this.subject.animation;
         this.callback.call(this.subject,this);
-    }
+	this.cleanup()
+    },
+
+    cleanup: function() { }
 })
       });

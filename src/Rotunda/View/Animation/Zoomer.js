@@ -28,6 +28,11 @@ return declare (Animation,
 	    yfactor = Math.pow (xfactor, this.rotunda.trackRadiusScaleExponent)
 	}
         this.rotunda.gTransformScale (xfactor, yfactor)
+    },
+
+    cleanup: function() {
+	if (this.rotunda.useCanvasForAnimations)
+	    this.rotunda.destroyAnimationCanvas()
     }
 })
 
