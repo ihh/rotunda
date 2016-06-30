@@ -568,9 +568,8 @@ return declare( null, {
 
     // This rather kludgy method returns a [promise yielding a] Canvas element
     // onto which the view, without text labels, has been painted.
-    // The hope is that this will be useful for implementing animations
-    // that run smoother than SVG transforms on Firefox (o Moz, why u hate SVGs?).
-    // Specifically, we can 
+    // This can be used to implement animations via image-painting operations
+    // that may sometimes run smoother than SVG transforms on Firefox (o Moz, why u hate SVGs?).
     // Other possibilites to deal with Firefox jerkiness:
     //  - use open-source SVG rendering library such as canvg: https://github.com/gabelerner/canvg
     //  - do everything in Canvas to begin with (but then mouseover element detection is hard, esp. Bezier curves)
