@@ -115,8 +115,8 @@ return declare( null, {
                 rot.dragging = false
             })
 
-	this.useCanvasForAnimations = config.useCanvasForAnimations
-	this.hideLabelsDuringAnimation = 'hideLabelsDuringAnimation' in config ? config.hideLabelsDuringAnimation : dojo.isFF
+	this.useCanvasForAnimations = 'useCanvasForAnimations' in config ? config.useCanvasForAnimations : dojo.isFF
+	this.hideLabelsDuringAnimation = config.hideLabelsDuringAnimation
 
 	this.waitElems = dojo.filter( [ dojo.byId("moveLeft"), dojo.byId("moveRight"),
 					dojo.byId("zoomIn"), dojo.byId("zoomOut"),
