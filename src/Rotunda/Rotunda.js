@@ -106,7 +106,13 @@ return declare( null, {
                     rot.dragging = true
                 }
                 rot.dragDeltaRadians = rot.xyAngle (x, y) - rot.dragInitRadians
-                rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
+                var dragRotate = function() {
+                    rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
+                }
+                if (rot.useCanvasForAnimations)
+                    rot.spritePromise.then (dragRotate)
+                else
+                    dragRotate()
             })
             .on("dragend", function(d,i) {
 		if (rot.useCanvasForAnimations)
