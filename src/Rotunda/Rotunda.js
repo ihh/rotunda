@@ -1,7 +1,9 @@
 define([
     'dojo/_base/declare',
     'dojo/_base/lang',
+    'dojo/_base/event',
     'dojo/query',
+    'dojo/on',
     'dojo/dnd/Source',
     'dojo/aspect',
     'dojo/Deferred',
@@ -11,10 +13,13 @@ define([
     'Rotunda/View/Animation/Slider',
     'Rotunda/detect-element-resize'
 ],
+
        function(
            declare,
            lang,
+	   event,
            query,
+	   on,
            dndSource,
            aspect,
 	   Deferred,
@@ -120,6 +125,60 @@ return declare( null, {
                 rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
                 rot.dragging = false
             })
+
+        var wheelevent = "onwheel" in document.createElement("div") ? "wheel"      :
+            document.onmousewheel !== undefined ? "mousewheel" :
+            "DOMMouseScroll"
+
+	on (this.svg_wrapper[0][0],
+	    wheelevent,
+	    function (evt) {
+                if (rot.animation) return;
+		var dx = evt.deltaX
+                if (!rot.scrolling) {
+		    if (rot.hideLabelsDuringAnimation)
+			rot.hideLabels()
+		    rot.radiansPerPixelScrolled = rot.angularViewWidth() / rot.width
+		    rot.cumulativePixelsScrolled = 0
+		    rot.scrolling = true
+                }
+		rot.cumulativePixelsScrolled += dx
+		rot.cumulativeRadiansScrolled = -rot.cumulativePixelsScrolled * rot.radiansPerPixelScrolled
+
+		// 100 milliseconds since the last scroll event is an arbitrary
+		// cutoff for deciding when the user is done scrolling
+		// (copied from JBrowse)
+		// Delay a bit longer when using drawImage->Canvas for animations (this sucks on Firefox)
+		var wheelTimeoutDelay = rot.useCanvasForAnimations ? 500 : 100
+
+		if ( rot.wheelScrollTimeout ) {
+		    window.clearTimeout( rot.wheelScrollTimeout )
+		    rot.wheelScrollTimeout = null
+		}
+
+		rot.wheelScrollTimeout = setTimeout( dojo.hitch( rot, function() {
+//		    console.log("wheelScrollTimeout")
+		    if (rot.useCanvasForAnimations)
+			rot.destroyAnimationCanvas()
+		    rot.rotateTo (rot.rotate + rot.cumulativeRadiansScrolled)
+		    rot.wheelScrollTimeout = null
+		    rot.scrolling = false
+		}, wheelTimeoutDelay));
+
+		var wheelRotate = function() {
+//		    console.log("wheelRotate")
+		    if (rot.scrolling)
+			rot.gTransformRotate (rot.cumulativeRadiansScrolled * 180 / Math.PI)
+		}
+
+		if (rot.useCanvasForAnimations)
+		    rot.spritePromise.then (wheelRotate)
+		else
+		    wheelRotate()
+
+		event.stop(evt)
+	    })
+
 
 	this.useCanvasForAnimations = 'useCanvasForAnimations' in config ? config.useCanvasForAnimations : dojo.isFF
 	this.hideLabelsDuringAnimation = config.hideLabelsDuringAnimation
@@ -755,7 +814,7 @@ return declare( null, {
 
     angularViewWidth: function (radius) {
 	radius = radius || this.innerRadius()
-        return 2*Math.asin ((this.width / 2) / radius)
+        return this.width/2 > radius ? Math.PI : 2*Math.asin ((this.width / 2) / radius)
     },
 
     angularViewRange: function (radius) {
