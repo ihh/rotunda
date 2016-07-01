@@ -30,7 +30,7 @@ return declare (null, {
 	if (subject.hideLabelsDuringAnimation)
 	    rotunda.hideLabels()
 
-	if (subject.useCanvasForAnimation)
+	if (subject.useCanvasForAnimations)
 	    subject.spritePromise.then (startAnimation)
 	else
 	    startAnimation()
@@ -72,8 +72,8 @@ return declare (null, {
 
     stop: function() {
         clearTimeout(this.animID);
-        delete this.subject.animation;
-        this.callback.call(this.subject,this);
+        delete this.subject.animation
+        this.callback.call(this.subject,this)
 	this.cleanup()
     },
 

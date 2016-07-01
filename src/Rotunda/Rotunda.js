@@ -577,6 +577,7 @@ return declare( null, {
 	var rot = this
 	var deferred = new Deferred()
 
+        delete rot.spriteImage
 	setTimeout (function() {
 	    var img = new Image()
 	    var ser = new XMLSerializer()
