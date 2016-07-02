@@ -97,39 +97,11 @@ return declare( null, {
 	if (config.resizable)
 	    this.svg_wrapper.attr("style", "resize:both;")
 
-        // use d3 to add drag behavior
-        this.dragBehavior = d3.behavior.drag()
-            .on("dragstart", function(d,i) {
-                if (rot.animation) return;
-                rot.dragDeltaRadians = 0
-            })
-            .on("drag", function(d,i) {
-                if (rot.animation) return;
-		var x = d3.event.x
-		var y = d3.event.y + rot.svg_wrapper[0][0].scrollTop
-                if (!rot.dragging) {
-		    if (rot.hideLabelsDuringAnimation)
-			rot.hideLabels()
-                    var xDragStart = x - d3.event.dx
-                    var yDragStart = y - d3.event.dy
-                    rot.dragInitRadians = rot.xyAngle (xDragStart, yDragStart)
-                    rot.dragging = true
-                }
-                rot.dragDeltaRadians = rot.xyAngle (x, y) - rot.dragInitRadians
-                var dragRotate = function() {
-                    rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
-                }
-                if (rot.useCanvasForAnimations)
-                    rot.spritePromise.then (dragRotate)
-                else
-                    dragRotate()
-            })
-            .on("dragend", function(d,i) {
-		if (rot.useCanvasForAnimations)
-		    rot.destroyAnimationCanvas()
-                rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
-                rot.dragging = false
-            })
+        // use dojo for drag pan
+        rot.dragHandlers = []
+        on (rot.svg_wrapper[0][0],
+            'mousedown',
+            lang.hitch (rot, rot.dragStart))
 
         // use dojo for mouse-wheel pan
         var wheelevent = "onwheel" in document.createElement("div") ? "wheel"      :
@@ -138,53 +110,12 @@ return declare( null, {
 
 	on (this.svg_wrapper[0][0],
 	    wheelevent,
-	    function (evt) {
-                if (rot.animation) return;
-		var dx = evt.deltaX
-                if (!rot.scrolling) {
-		    if (rot.hideLabelsDuringAnimation)
-			rot.hideLabels()
-		    rot.radiansPerPixelScrolled = rot.angularViewWidth() / rot.width
-		    rot.cumulativePixelsScrolled = 0
-		    rot.scrolling = true
-                }
-		rot.cumulativePixelsScrolled += dx
-		rot.cumulativeRadiansScrolled = -rot.cumulativePixelsScrolled * rot.radiansPerPixelScrolled
+            lang.hitch (rot, rot.wheelScroll))
 
-		// 100 milliseconds since the last scroll event is an arbitrary
-		// cutoff for deciding when the user is done scrolling
-		// (copied from JBrowse)
-		// Delay a bit longer when using drawImage->Canvas for animations (this sucks on Firefox)
-		var wheelTimeoutDelay = rot.useCanvasForAnimations ? 500 : 100
-
-		if ( rot.wheelScrollTimeout ) {
-		    window.clearTimeout( rot.wheelScrollTimeout )
-		    rot.wheelScrollTimeout = null
-		}
-
-		rot.wheelScrollTimeout = setTimeout( dojo.hitch( rot, function() {
-//		    console.log("wheelScrollTimeout")
-		    if (rot.useCanvasForAnimations)
-			rot.destroyAnimationCanvas()
-		    rot.rotateTo (rot.rotate + rot.cumulativeRadiansScrolled)
-		    rot.wheelScrollTimeout = null
-		    rot.scrolling = false
-		}, wheelTimeoutDelay));
-
-		var wheelRotate = function() {
-//		    console.log("wheelRotate")
-		    if (rot.scrolling)
-			rot.gTransformRotate (rot.cumulativeRadiansScrolled * 180 / Math.PI)
-		}
-
-		if (rot.useCanvasForAnimations)
-		    rot.spritePromise.then (wheelRotate)
-		else
-		    wheelRotate()
-
-                if (dx)
-		    event.stop(evt)
-	    })
+        // use dojo for double-click zoom
+        on (this.svg_wrapper[0][0],
+            "dblclick",
+	    lang.hitch (rot, rot.doubleClickZoom))
 
         // elements that need wait cursors
 	this.waitElems = dojo.filter( [ dojo.byId("moveLeft"), dojo.byId("moveRight"),
@@ -200,19 +131,6 @@ return declare( null, {
 
 	// initialize scales and draw
 	this.initScales()
-
-        // use dojo for double-click zoom
-        // commented out for now, since drag behavior on svg seems to nullify this
-        /*
-        on (this.svg_wrapper[0][0],
-            "dblclick",
-	    function (evt) {
-                if (evt.shiftKey)
-                    rot.bigZoomOut()
-                else
-                    rot.bigZoomIn()
-            })
-        */
 
 	// add resize handlers
 	if (config.resizable)
@@ -262,6 +180,140 @@ return declare( null, {
         return [w, h]
     },
 
+    dragStart: function(evt) {
+        var rot = this
+        if (rot.animation) return true;
+        rot.dragDeltaRadians = 0
+        rot.dragHandlers.push
+        (on (rot.svg_wrapper[0][0],
+            'mousemove',
+             lang.hitch (rot, rot.dragMove)),
+         on (rot.svg_wrapper[0][0],
+             'mouseup',
+             lang.hitch (rot, rot.dragEnd)),
+         on (rot.svg_wrapper[0][0],
+             'mouseout',
+             lang.hitch (rot, rot.checkDragOut)))
+        
+        if (!rot.dragging) {
+	    if (rot.hideLabelsDuringAnimation)
+		rot.hideLabels()
+            var xDragStart = evt.clientX
+            var yDragStart = evt.clientY + rot.svg_wrapper[0][0].scrollTop
+            rot.dragInitRadians = rot.xyAngle (xDragStart, yDragStart)
+            rot.dragging = true
+        }
+
+        return true
+    },
+
+    dragMove: function(evt) {
+        var rot = this
+        if (rot.animation) return true;
+	var x = evt.clientX
+	var y = evt.clientY + rot.svg_wrapper[0][0].scrollTop
+        rot.dragDeltaRadians = rot.xyAngle (x, y) - rot.dragInitRadians
+        var dragRotate = function() {
+            rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
+        }
+        if (rot.useCanvasForAnimations)
+            rot.spritePromise.then (dragRotate)
+        else
+            dragRotate()
+        return true
+    },
+    
+    dragEnd: function(evt) {
+        var rot = this
+	if (rot.useCanvasForAnimations)
+	    rot.destroyAnimationCanvas()
+        if (rot.dragDeltaRadians != 0)
+            rot.rotateTo (rot.rotate + rot.dragDeltaRadians)
+        rot.dragging = false
+        rot.dragHandlers.forEach (function (signal) { signal.remove() })
+        rot.dragHandlers = []
+        return true
+    },
+
+    checkDragOut: function( event ) {
+        var htmlNode = document.body.parentNode;
+        var bodyNode = document.body;
+
+        if (!(event.relatedTarget || event.toElement)
+            || (htmlNode === (event.relatedTarget || event.toElement))
+            || (bodyNode === (event.relatedTarget || event.toElement))
+           ) {
+            this.dragEnd(event);
+        }
+    },
+
+    wheelScroll: function(evt) {
+        var rot = this
+        if (rot.animation || rot.dragging) return;
+	var dx = evt.deltaX
+        if (!rot.scrolling) {
+	    if (rot.hideLabelsDuringAnimation)
+		rot.hideLabels()
+	    rot.radiansPerPixelScrolled = rot.angularViewWidth() / rot.width
+	    rot.cumulativePixelsScrolled = 0
+	    rot.scrolling = true
+        }
+	rot.cumulativePixelsScrolled += dx
+	rot.cumulativeRadiansScrolled = -rot.cumulativePixelsScrolled * rot.radiansPerPixelScrolled
+
+	// 100 milliseconds since the last scroll event is an arbitrary
+	// cutoff for deciding when the user is done scrolling
+	// (copied from JBrowse)
+	// Delay a bit longer when using drawImage->Canvas for animations (this sucks on Firefox)
+	var wheelTimeoutDelay = rot.useCanvasForAnimations ? 500 : 100
+
+	if ( rot.wheelScrollTimeout ) {
+	    window.clearTimeout( rot.wheelScrollTimeout )
+	    rot.wheelScrollTimeout = null
+	}
+
+	rot.wheelScrollTimeout = setTimeout( dojo.hitch( rot, function() {
+            //		    console.log("wheelScrollTimeout")
+	    if (rot.useCanvasForAnimations)
+		rot.destroyAnimationCanvas()
+	    rot.rotateTo (rot.rotate + rot.cumulativeRadiansScrolled)
+	    rot.wheelScrollTimeout = null
+	    rot.scrolling = false
+	}, wheelTimeoutDelay));
+
+	var wheelRotate = function() {
+            //		    console.log("wheelRotate")
+	    if (rot.scrolling)
+		rot.gTransformRotate (rot.cumulativeRadiansScrolled * 180 / Math.PI)
+	}
+
+	if (rot.useCanvasForAnimations)
+	    rot.spritePromise.then (wheelRotate)
+	else
+	    wheelRotate()
+
+        if (dx)
+	    event.stop(evt)
+    },
+
+    doubleClickZoom: function (evt) {
+        var rot = this
+        if (evt.shiftKey)
+            rot.bigZoomOut()
+        else
+            rot.bigZoomIn()
+
+        rot.clearSelection()
+    },
+
+    clearSelection: function() {
+        if(document.selection && document.selection.empty) {
+            document.selection.empty();
+        } else if(window.getSelection) {
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+        }
+    },
     
     manualResizeCallback: function() {
 	if (this.resizeTimeout)
@@ -476,7 +528,7 @@ return declare( null, {
     
     slide: function(distance) {
         var rotunda = this
-        if (this.animation) return;
+        if (this.animation || this.dragging) return;
         var deltaRads = 2 * distance * Math.atan (.5 * this.width / (this.outerRadius()))
         var newRads = this.rotate + deltaRads
         new Slider (rotunda,
@@ -617,7 +669,7 @@ return declare( null, {
             .attr("width", this.width)
             .attr("height", Math.max (this.height, this.totalTrackRadius))
 
-        this.svg.call(this.dragBehavior)
+//        this.svg.call(this.dragBehavior)
 
         this.g = this.svg
             .append("g")
