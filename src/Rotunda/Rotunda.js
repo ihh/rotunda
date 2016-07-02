@@ -49,6 +49,10 @@ return declare( null, {
         this.width = config.width || dim[0]
         this.height = config.height || dim[1]
 
+        // config for animations
+	this.useCanvasForAnimations = 'useCanvasForAnimations' in config ? config.useCanvasForAnimations : dojo.isFF
+	this.hideLabelsDuringAnimation = config.hideLabelsDuringAnimation
+
 	// set up angular coordinate system
         this.refSeqLen = config.refSeqLen || [360]
         this.refSeqName = config.refSeqName || config.refSeqLen.map (function(n,i) { return "seq" + (i+1) })
@@ -70,7 +74,7 @@ return declare( null, {
         // build view
         dojo.addClass( document.body, this.config.theme || "tundra")  // tundra dijit theme
 
-        // slightly funky mixture of dojo/d3 here...
+        // slightly funky mixture of dojo/d3 here... probably need to sort this out
         // use dojo to create navbox and track list
         var dojoContainer = query("#"+this.id)
         this.container = dojoContainer[0]
@@ -92,7 +96,8 @@ return declare( null, {
 
 	if (config.resizable)
 	    this.svg_wrapper.attr("style", "resize:both;")
-        
+
+        // use d3 to add drag behavior
         this.dragBehavior = d3.behavior.drag()
             .on("dragstart", function(d,i) {
                 if (rot.animation) return;
@@ -126,6 +131,7 @@ return declare( null, {
                 rot.dragging = false
             })
 
+        // use dojo for mouse-wheel pan
         var wheelevent = "onwheel" in document.createElement("div") ? "wheel"      :
             document.onmousewheel !== undefined ? "mousewheel" :
             "DOMMouseScroll"
@@ -176,13 +182,11 @@ return declare( null, {
 		else
 		    wheelRotate()
 
-		event.stop(evt)
+                if (dx)
+		    event.stop(evt)
 	    })
 
-
-	this.useCanvasForAnimations = 'useCanvasForAnimations' in config ? config.useCanvasForAnimations : dojo.isFF
-	this.hideLabelsDuringAnimation = config.hideLabelsDuringAnimation
-
+        // elements that need wait cursors
 	this.waitElems = dojo.filter( [ dojo.byId("moveLeft"), dojo.byId("moveRight"),
 					dojo.byId("zoomIn"), dojo.byId("zoomOut"),
 					dojo.byId("bigZoomIn"), dojo.byId("bigZoomOut"),
@@ -196,6 +200,19 @@ return declare( null, {
 
 	// initialize scales and draw
 	this.initScales()
+
+        // use dojo for double-click zoom
+        // commented out for now, since drag behavior on svg seems to nullify this
+        /*
+        on (this.svg_wrapper[0][0],
+            "dblclick",
+	    function (evt) {
+                if (evt.shiftKey)
+                    rot.bigZoomOut()
+                else
+                    rot.bigZoomIn()
+            })
+        */
 
 	// add resize handlers
 	if (config.resizable)
@@ -335,7 +352,7 @@ return declare( null, {
         dojo.connect( bigZoomOut, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.zoomOut(undefined, undefined, 2);
+                          this.bigZoomOut();
                       });
 
 
@@ -372,7 +389,7 @@ return declare( null, {
         dojo.connect( bigZoomIn, "click", this,
                       function(event) {
                           dojo.stopEvent(event);
-                          this.zoomIn(undefined, undefined, 2);
+                          this.bigZoomIn();
                       });
 
         return navbox
@@ -466,6 +483,14 @@ return declare( null, {
                     function() { rotunda.rotateTo(newRads) },
                     700,
                     newRads)
+    },
+
+    bigZoomIn: function() {
+        this.zoomIn(undefined,undefined,2)
+    },
+
+    bigZoomOut: function() {
+        this.zoomOut(undefined,undefined,2)
     },
 
     zoomIn: function(e, zoomLoc, steps) {
