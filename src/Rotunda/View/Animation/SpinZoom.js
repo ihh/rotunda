@@ -22,12 +22,12 @@ return declare (Animation,
 
     step: function(pos) {
         var zoomFraction = this.zoomingIn ? pos : 1 - pos
-        var z2 = zoomFraction * zoomFraction
+        var z2 = zoomFraction
         var curScaleFactor = (z2 * this.deltaScale + this.minScale) / this.oldScale
-        var nonlinear = this.minScale >= this.rotunda.nonlinearScaleThreshold
+        var stretch = this.minScale >= this.rotunda.animationStretchScaleThreshold
 	var xfactor = curScaleFactor, yfactor = curScaleFactor
-	if (nonlinear) {
-	    yfactor = Math.pow (xfactor, this.rotunda.trackRadiusScaleExponent)
+	if (stretch) {
+	    yfactor = this.rotunda.trackRadiusScale(curScaleFactor*this.oldScale) / this.rotunda.trackRadiusScale(this.oldScale)
 	}
         this.rotunda.gTransformRotateAndScale (this.degrees*pos, xfactor, yfactor)
     },

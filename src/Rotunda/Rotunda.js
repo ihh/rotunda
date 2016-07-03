@@ -156,11 +156,10 @@ return declare( null, {
 
         var maxTrackScale = this.config.maxTrackScale || (this.maxScale > 1 ? (Math.log(this.maxScale) / Math.log(2)) : 1)
 
-	var verticalCurvatureDropThreshold = .9
-	var curvatureScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
-        var trackRadiusScaleThreshold = Math.pow (4, Math.floor (Math.log (maxTrackScale) / Math.log(4)))
-	this.nonlinearScaleThreshold = Math.min (curvatureScaleThreshold, trackRadiusScaleThreshold)
-        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.nonlinearScaleThreshold) / Math.log(this.maxScale/this.nonlinearScaleThreshold)) : 1
+	var verticalCurvatureDropThreshold = .99
+	this.animationStretchScaleThreshold = Math.pow (4, Math.ceil (Math.log (this.width / (this.radius * Math.acos (verticalCurvatureDropThreshold))) / Math.log(4)))
+	this.trackRadiusNonlinearScaleThreshold = Math.pow (4, Math.floor (Math.log (maxTrackScale) / Math.log(4)))
+        this.trackRadiusScaleExponent = this.maxScale > 1 ? (Math.log(maxTrackScale/this.trackRadiusNonlinearScaleThreshold) / Math.log(this.maxScale/this.trackRadiusNonlinearScaleThreshold)) : 1
 
 	// initialize view coords
 	if (this.scale)
@@ -828,9 +827,9 @@ return declare( null, {
     },
 
     trackRadiusScale: function (scale) {
-	return (scale <= this.nonlinearScaleThreshold
+	return (scale <= this.trackRadiusNonlinearScaleThreshold
 		? scale
-		: this.nonlinearScaleThreshold * Math.pow (scale / this.nonlinearScaleThreshold, this.trackRadiusScaleExponent))
+		: this.trackRadiusNonlinearScaleThreshold * Math.pow (scale / this.trackRadiusNonlinearScaleThreshold, this.trackRadiusScaleExponent))
     },
 
     calculateTrackSize: function (track, scale, trackRadiusScale) {
