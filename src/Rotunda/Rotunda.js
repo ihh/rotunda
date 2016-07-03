@@ -11,6 +11,7 @@ define([
     'Rotunda/util',
     'Rotunda/View/Animation/Zoomer',
     'Rotunda/View/Animation/Slider',
+    'Rotunda/View/Animation/SpinZoom',
     'Rotunda/detect-element-resize'
 ],
 
@@ -26,7 +27,8 @@ define([
            libd3,
            util,
            Zoomer,
-           Slider
+           Slider,
+           SpinZoom
        ) {
 
 return declare( null, {
@@ -298,10 +300,16 @@ return declare( null, {
 
     doubleClickZoom: function (evt) {
         var rot = this
+
+	var x = evt.clientX
+	var y = evt.clientY + rot.svg_wrapper[0][0].scrollTop
+        var deltaRadians = rot.xyAngle (x, y)
+        var radians = this.rotate - deltaRadians
+
         if (evt.shiftKey)
-            rot.bigZoomOut()
+            rot.bigZoomOut(radians)
         else
-            rot.bigZoomIn()
+            rot.bigZoomIn(radians)
 
         rot.clearSelection()
     },
@@ -346,8 +354,8 @@ return declare( null, {
     
     xyAngle: function(x,y) {
         var dx = x - this.width/2
-        var dy = y - this.outerRadius()
-        return Math.atan2(-dx,dy)
+        var dy = this.outerRadius() - y
+        return Math.atan2(dx,dy)
     },
 
     xPos: function(r,theta) {
@@ -537,45 +545,51 @@ return declare( null, {
                     newRads)
     },
 
-    bigZoomIn: function() {
-        this.zoomIn(undefined,undefined,2)
+    bigZoomIn: function(newRotate) {
+        this.zoomIn(undefined,newRotate,2)
     },
 
-    bigZoomOut: function() {
-        this.zoomOut(undefined,undefined,2)
+    bigZoomOut: function(newRotate) {
+        this.zoomOut(undefined,newRotate,2)
     },
 
-    zoomIn: function(e, zoomLoc, steps) {
+    zoomIn: function(e, newRotate, steps) {
+        if (typeof(newRotate) === 'undefined')
+            newRotate = this.rotate
         if (this.animation) return;
         if (steps === undefined) steps = 1;
         var newScale = this.scale
         while (steps-- > 0)
             newScale *= 2
         newScale = Math.min (this.maxScale, newScale)
-        this.zoomTo (newScale)
+        this.zoomTo (newScale, newRotate)
     },
 
-    zoomOut: function(e, zoomLoc, steps) {
+    zoomOut: function(e, newRotate, steps) {
+        if (typeof(newRotate) === 'undefined')
+            newRotate = this.rotate
         if (this.animation) return;
         if (steps === undefined) steps = 1;
         var newScale = this.scale
         while (steps-- > 0)
             newScale /= 2
         newScale = Math.max (this.minScale, newScale)
-        this.zoomTo (newScale)
+        this.zoomTo (newScale, newRotate)
     },
 
-    zoomTo: function (newScale) {
+    zoomTo: function (newScale, newRotate) {
         var rot = this
-	if (newScale != rot.scale)
-            new Zoomer (rot,
-			function() {
-                            rot.scale = newScale
-			    rot.calculateTrackSizes()
-                            rot.redraw()
-			},
-			700,
-                        newScale)
+	if (newScale != rot.scale || newRotate != rot.rotate)
+            new SpinZoom (rot,
+			  function() {
+                              rot.rotate = newRotate
+                              rot.scale = newScale
+			      rot.calculateTrackSizes()
+                              rot.redraw()
+			  },
+			  700,
+                          newRotate,
+                          newScale)
     },
 
     showWait: function() {
@@ -598,6 +612,34 @@ return declare( null, {
 	this.labels.attr ('style', 'visibility:hidden;')
     },
 
+
+    gTransformRotateAndScale: function (degrees, xfactor, yfactor) {
+	var rot = this
+        degrees = degrees || 0
+        xfactor = xfactor || 1
+	yfactor = yfactor || xfactor
+	if (this.useCanvasForAnimations) {
+	    rot.createAnimationCanvas()
+	    var context = rot.animationCanvas.getContext("2d")
+	    var r = rot.outerRadius()
+	    context.translate (rot.width/2, r)
+	    context.rotate (degrees * Math.PI / 180)
+	    context.translate (-rot.width/2, -r)
+	    context.drawImage (rot.spriteImage, 0, 0)
+
+	} else {
+            this.g.attr("transform",
+			"scale(" + xfactor + "," + yfactor + ")"
+                        + " translate(" + (this.width/2) / xfactor + "," + this.outerRadius() + ")"
+                        + " rotate(" + degrees + ")")
+	    if (!this.hideLabelsDuringAnimation)
+		this.labels
+		.attr("transform",
+                      "scale(" + (1/xfactor) + "," + (1/yfactor) + ")"
+                      + " rotate(" + (-degrees) + ")")
+	}
+    },
+    
     gTransformRotate: function (degrees) {
 	var rot = this
 	if (this.useCanvasForAnimations) {
