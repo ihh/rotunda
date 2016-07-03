@@ -18,7 +18,8 @@ return declare (null, {
         this.subject = subject;
         this.callback = callback;
 
-	var startAnimation = function() {
+	var startAnimation = function (img) {
+            animation.spriteImage = img
             animation.animFunction = function() { animation.animate() }
             // number of milliseconds between frames (e.g., 33ms at 30fps)
             animation.animID = setTimeout(animation.animFunction, 33)

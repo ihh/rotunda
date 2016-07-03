@@ -214,8 +214,8 @@ return declare( null, {
 	var x = evt.clientX
 	var y = evt.clientY + rot.svg_wrapper[0][0].scrollTop
         rot.dragDeltaRadians = rot.xyAngle (x, y) - rot.dragInitRadians
-        var dragRotate = function() {
-            rot.gTransformRotate (rot.dragDeltaRadians * 180 / Math.PI)
+        var dragRotate = function (spriteImage) {
+            rot.gTransformRotate (spriteImage, rot.dragDeltaRadians * 180 / Math.PI)
         }
         if (rot.useCanvasForAnimations)
             rot.spritePromise.then (dragRotate)
@@ -282,10 +282,10 @@ return declare( null, {
 	    rot.scrolling = false
 	}, wheelTimeoutDelay));
 
-	var wheelRotate = function() {
+	var wheelRotate = function (spriteImage) {
             //		    console.log("wheelRotate")
 	    if (rot.scrolling)
-		rot.gTransformRotate (rot.cumulativeRadiansScrolled * 180 / Math.PI)
+		rot.gTransformRotate (spriteImage, rot.cumulativeRadiansScrolled * 180 / Math.PI)
 	}
 
 	if (rot.useCanvasForAnimations)
@@ -612,7 +612,7 @@ return declare( null, {
     },
 
 
-    gTransformRotateAndScale: function (degrees, xfactor, yfactor) {
+    gTransformRotateAndScale: function (spriteImage, degrees, xfactor, yfactor) {
 	var rot = this
         degrees = degrees || 0
         xfactor = xfactor || 1
@@ -626,7 +626,7 @@ return declare( null, {
 	    context.translate (0, r)
 	    context.rotate (degrees * Math.PI / 180)
 	    context.translate (-rot.width/2, -r)
-	    context.drawImage (rot.spriteImage, 0, 0)
+	    context.drawImage (spriteImage, 0, 0)
 
 	} else {
             this.g.attr("transform",
@@ -641,7 +641,7 @@ return declare( null, {
 	}
     },
     
-    gTransformRotate: function (degrees) {
+    gTransformRotate: function (spriteImage, degrees) {
 	var rot = this
 	if (this.useCanvasForAnimations) {
 	    rot.createAnimationCanvas()
@@ -650,7 +650,7 @@ return declare( null, {
 	    context.translate (rot.width/2, r)
 	    context.rotate (degrees * Math.PI / 180)
 	    context.translate (-rot.width/2, -r)
-	    context.drawImage (rot.spriteImage, 0, 0)
+	    context.drawImage (spriteImage, 0, 0)
 
 	} else {
             this.g.attr("transform",
@@ -661,7 +661,7 @@ return declare( null, {
 	}
     },
 
-    gTransformScale: function (xfactor, yfactor) {
+    gTransformScale: function (spriteImage, xfactor, yfactor) {
 	yfactor = yfactor || xfactor
 	var rot = this
 	if (this.useCanvasForAnimations) {
@@ -670,7 +670,7 @@ return declare( null, {
 	    context.translate (rot.width/2, 0)
 	    context.scale (xfactor, yfactor)
 	    context.translate (-rot.width/2, 0)
-	    context.drawImage (rot.spriteImage, 0, 0)
+	    context.drawImage (spriteImage, 0, 0)
 
 	} else {
             this.g.attr("transform",
@@ -712,8 +712,6 @@ return declare( null, {
             .attr("width", this.width)
             .attr("height", Math.max (this.height, this.totalTrackRadius))
 
-//        this.svg.call(this.dragBehavior)
-
         this.g = this.svg
             .append("g")
             .attr("id", this.id+"-g")
@@ -730,7 +728,8 @@ return declare( null, {
         this.labels = d3.selectAll(".rotundaLabel")
 
 	if (rot.useCanvasForAnimations)
-	    rot.spritePromise = rot.promiseSprite()
+            rot.spritePromise = rot.promiseSprite()
+
     },
 
     drawTrack: function (track, trackNum, minAngle, maxAngle) {
@@ -751,7 +750,7 @@ return declare( null, {
         }
     },
 
-    // This rather kludgy method returns a [promise yielding a] Canvas element
+    // This rather kludgy method returns a promise, yielding an Image,
     // onto which the view, without text labels, has been painted.
     // This can be used to implement animations via image-painting operations
     // that may sometimes run smoother than SVG transforms on Firefox (o Moz, why u hate SVGs?).
@@ -762,37 +761,36 @@ return declare( null, {
 	var rot = this
 	var deferred = new Deferred()
 
-        delete rot.spriteImage
-	setTimeout (function() {
-	    var img = new Image()
-	    var ser = new XMLSerializer()
-	    var svg = rot.svg[0][0]
+        var img = new Image()
+	var ser = new XMLSerializer()
 
-	    rot.labels.attr('style','display:none;')
-	    var xml = ser.serializeToString( svg )
-	    rot.labels.attr('style','')
+        if (!rot.svg) {
+            console.log ("rot.svg undefined in promiseSprite!")
+        }
 
-	    var blob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'})
+        var svg = rot.svg[0][0]
 
-	    var DOMURL = window.URL || window.webkitURL || window
-	    var url = DOMURL.createObjectURL(blob)
+	rot.labels.attr('style','display:none;')
+	var xml = ser.serializeToString( svg )
+	rot.labels.attr('style','')
 
-	    img.onload = function () {
-		rot.spriteImage = img
+	var blob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'})
 
-		if (rot.spriteUrl)
-		    DOMURL.revokeObjectURL(rot.spriteUrl)
-		rot.spriteUrl = url
+	var DOMURL = window.URL || window.webkitURL || window
+	var url = DOMURL.createObjectURL(blob)
 
-		deferred.resolve (img)
-	    }
-	    img.src = url
+	img.onload = function () {
+	    if (rot.spriteUrl)
+		DOMURL.revokeObjectURL(rot.spriteUrl)
+	    rot.spriteUrl = url
 
-	}, 700)
+	    deferred.resolve (img)
+	}
+	img.src = url
 
 	return deferred
     },
-
+    
     createAnimationCanvas: function() {
 	this.destroyAnimationCanvas()
 	this.clear()

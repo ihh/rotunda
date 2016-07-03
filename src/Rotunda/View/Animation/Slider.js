@@ -14,7 +14,7 @@ return declare (Animation,
     },
 
     step: function(pos) {
-        this.rotunda.gTransformRotate (this.degrees * pos)
+        this.rotunda.gTransformRotate (this.spriteImage, this.degrees * pos)
     },
 
     cleanup: function() {

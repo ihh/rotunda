@@ -27,7 +27,7 @@ return declare (Animation,
 	if (stretch) {
 	    yfactor = this.rotunda.trackRadiusScale(curScaleFactor*this.oldScale) / this.rotunda.trackRadiusScale(this.oldScale)
 	}
-        this.rotunda.gTransformScale (xfactor, yfactor)
+        this.rotunda.gTransformScale (this.spriteImage, xfactor, yfactor)
     },
 
     cleanup: function() {
