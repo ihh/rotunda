@@ -16,6 +16,10 @@ return declare (Animation,
         this.zoomingIn = this.relativeScale > 1
         this.deltaScale = Math.abs (this.newScale - this.oldScale)
         this.minScale = Math.min (this.oldScale, this.newScale)
+
+        // kludge to slow down jerky zooms on Firefox
+        if (dojo.isFF && this.zoomingIn && this.oldScale <= 8)
+            this.frameDelay *= 2
     },
 
     step: function(pos) {

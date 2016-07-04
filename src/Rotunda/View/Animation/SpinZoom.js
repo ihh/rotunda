@@ -18,6 +18,10 @@ return declare (Animation,
         this.minScale = Math.min (this.oldScale, this.newScale)
 
         this.degrees = (newRadians - rotunda.rotate) * 180 / Math.PI
+
+        // kludge to slow down jerky zooms on Firefox
+        if (dojo.isFF && this.zoomingIn && this.oldScale <= 8)
+            this.frameDelay *= 3
 },
 
     step: function(pos) {
