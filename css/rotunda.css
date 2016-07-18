@@ -1,6 +1,6 @@
 @import url("../src/dijit/themes/tundra/tundra.css");
 @import url("../src/dojo/resources/dojo.css");
-@import url("main.css");
+@import url("rmain.css");
 
 .rotunda-container {
     display: inline-block;
